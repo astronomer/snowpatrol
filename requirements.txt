@@ -1,2 +1,6 @@
 apache-airflow-providers-snowflake==5.1.2
 snowflake-snowpark-python[pandas]==1.10.0
+matplotlib==3.8.2
+scikit-learn==1.3.2
+statsmodels==0.14.0
+keras==2.15.0
