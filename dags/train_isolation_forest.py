@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pickle
 from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
 from statsmodels.tsa.seasonal import seasonal_decompose
 from tempfile import TemporaryDirectory
 import wandb
@@ -19,13 +18,13 @@ _SNOWFLAKE_CONN_ID = "snowflake_ro"
 
 feature_table = Dataset(uri="USAGE_FEATURES", 
                         extra={
-                            "cutoff_date": "'2022-11-15'",
+                            "cutoff_date": "'2022-12-17'",
                             "cost_categories": ["compute", "storage"]
                             })
 
 isolation_forest_model = Dataset(uri="isolation_forest_model", 
                                  extra={
-                                     "cost_models": ["compute", "storage"]
+                                     "cost_models": ["total_usage", "compute", "storage"]
                                      })
 
 @dag(
@@ -68,7 +67,7 @@ def train_isolation_forest():
             usage_df = snowflake_hook.get_pandas_df(
                 f"""SELECT "date", "{cost_category}" 
                   FROM {feature_table.uri} 
-                  ORDER BY "date" DESC;"""
+                  ORDER BY "date" ASC;"""
             )
 
             usage_df.date = pd.to_datetime(usage_df.date)
@@ -116,6 +115,6 @@ def train_isolation_forest():
             wandb.log({"anomalies": wandb.Image(f"{model_dir}/{cost_category}_anomalies.png")})
             wandb.log({"stl": wandb.Image(f"{model_dir}/{cost_category}_stl.png")})
                 
-    model_id = train.expand(cost_category=feature_table.extra.get("cost_categories"))
+    model_id = train.expand(cost_category=isolation_forest_model.extra.get("cost_models"))
 
 train_isolation_forest()

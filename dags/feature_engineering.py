@@ -9,7 +9,7 @@ usage_table = Dataset(uri="USAGE_IN_CURRENCY_DAILY")
 
 feature_table = Dataset(uri="USAGE_FEATURES", 
                         extra={
-                            "cutoff_date": "'2022-11-15'",
+                            "cutoff_date": "'2022-12-17'",
                             "cost_categories": ["compute", "storage"]
                             })
 
@@ -21,7 +21,10 @@ feature_table = Dataset(uri="USAGE_FEATURES",
 )
 def feature_engineering():
     """
-    This DAG performs feature engineering
+    
+    
+
+
     """
 
     @task(outlets=feature_table)
@@ -42,18 +45,30 @@ def feature_engineering():
         snowflake_hook.run(f"""
             CREATE OR REPLACE TABLE {feature_table.uri}(
                 "date" DATE, 
+                "total_usage" NUMBER(38,6),
                 {",".join([f'"{cat}" NUMBER(38,6)' for cat in cost_categories])}
-            )  AS SELECT *
-                  FROM ( 
-                    SELECT USAGE_DATE, USAGE, USAGE_TYPE 
-                    FROM {usage_table.uri} )
-                  PIVOT(SUM(USAGE) FOR USAGE_TYPE in ({str(cost_categories)[1:-1]})) as p
-                  (date, {", ".join(cost_categories)})
-                  WHERE ((date >= DATE {cutoff_date}) 
-                      AND (date < CURRENT_DATE())) 
-                  ORDER BY date
+            )  AS 
+                SELECT all_data.DATE, TOTAL_USAGE, {", ".join(cost_categories)}
+                FROM 
+                    (SELECT *
+                    FROM ( 
+                        SELECT USAGE_DATE, USAGE, USAGE_TYPE_CLEAN 
+                        FROM {usage_table.uri} )
+                    PIVOT(SUM(USAGE) FOR USAGE_TYPE_CLEAN in ({str(cost_categories)[1:-1]})) as p
+                        (date, {", ".join(cost_categories)})
+                    ) as category_data 
+                    JOIN 
+                    (SELECT USAGE_DATE AS DATE, SUM(USAGE_IN_CURRENCY) AS TOTAL_USAGE
+                    FROM ( 
+                        SELECT USAGE_DATE, USAGE_IN_CURRENCY 
+                        FROM {usage_table.uri})
+                    GROUP BY USAGE_DATE) as all_data
+                    ON category_data.date = all_data.date
+                    WHERE ((all_data.date >= DATE {cutoff_date}) 
+                        AND (all_data.date < CURRENT_DATE()))
             """)
-
+        
     build_features()
 
 feature_engineering()
+

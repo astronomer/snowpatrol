@@ -35,7 +35,8 @@ def data_engineering():
                 "CURRENCY" STRING(16777216), 
                 "USAGE" NUMBER(38, 6), 
                 "USAGE_IN_CURRENCY" NUMBER(38, 6), 
-                "BALANCE_SOURCE" STRING(16777216)
+                "BALANCE_SOURCE" STRING(16777216),
+                "USAGE_TYPE_CLEAN" STRING(16777216)
             )  AS  SELECT  
                 ACCOUNT_NAME, 
                 USAGE_DATE, 
@@ -43,7 +44,8 @@ def data_engineering():
                 CURRENCY, 
                 USAGE, 
                 USAGE_IN_CURRENCY, 
-                BALANCE_SOURCE 
+                BALANCE_SOURCE, 
+                REGEXP_REPLACE(USAGE_TYPE, '( ){{1,}}', '_') AS USAGE_TYPE_CLEAN 
             FROM SNOWFLAKE.ORGANIZATION_USAGE.{usage_table.uri}"""    
     )
 
