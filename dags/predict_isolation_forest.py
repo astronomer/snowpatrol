@@ -1,7 +1,7 @@
 from airflow.decorators import dag, task
 from airflow import Dataset
 from airflow.utils.dates import days_ago
-from airflow.operators.email import EmailOperator
+from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 import pandas as pd
 import pickle
@@ -13,6 +13,7 @@ wandb_project='snowstorm'
 wandb_entity='snowstorm'
 
 _SNOWFLAKE_CONN_ID = "snowflake_ro"
+_SLACK_CONN_ID = "slack_api_alert"
 
 snowflake_hook = SnowflakeHook(_SNOWFLAKE_CONN_ID)
 
@@ -84,39 +85,50 @@ def predict_isolation_forest():
             return anomalies_df
         
     @task()
-    def generate_report(anomaly_dfs:[pd.DataFrame]) -> pd.DataFrame:
+    def generate_report(anomaly_dfs:[pd.DataFrame]) -> str | None:
 
         anomalies_df = pd.concat(anomaly_dfs, axis=0).reset_index()
 
         report_dates = anomalies_df.date.apply(lambda x: str(x.date())).unique().tolist()
 
-        usage_df = snowflake_hook.get_pandas_df(
-                f"""SELECT ACCOUNT_NAME, USAGE_DATE, USAGE_TYPE_CLEAN, USAGE_IN_CURRENCY FROM {usage_table.uri} 
-                    WHERE USAGE_DATE IN ({str(report_dates)[1:-1]})
-                  ORDER BY "USAGE_DATE" ASC, "USAGE_IN_CURRENCY" DESC;"""
-            )
-        
-        return usage_df.to_html()
-
-        # anomalies_df = pd.DataFrame([{"date": pd.to_datetime('2023-12-04 00:00:00'), "compute": 826},
-        # {"date": pd.to_datetime('2023-12-03 00:00:00'), "compute": 800},
-        # {"date": pd.to_datetime('2023-12-04 00:00:00'), "storage": 15},
-        # {"date": pd.to_datetime('2023-12-04 00:00:00'), "usage_date": 200}])
+        if len(report_dates) > 0:
+            usage_df = snowflake_hook.get_pandas_df(
+                    f"""SELECT ACCOUNT_NAME AS ACCOUNT, 
+                            USAGE_DATE AS DATE, 
+                            USAGE_TYPE_CLEAN AS TYPE, 
+                            ROUND(USAGE_IN_CURRENCY, 2) AS USAGE 
+                        FROM {usage_table.uri} 
+                        WHERE DATE IN ({str(report_dates)[1:-1]})
+                    ORDER BY "DATE" ASC, "USAGE" DESC;"""
+                )
+            
+            usage_md = usage_df[["DATE", "USAGE", "TYPE", "ACCOUNT"]].to_markdown()
+            
+            report = "```# Anomalous activity in Snowflake usage\n\n"+usage_md+"```"
+            
+            return report
+        else:
+            return None
                 
     @task.branch()
     def check_notify(anomaly_dfs:[pd.DataFrame]):
         if len(pd.concat(anomaly_dfs, axis=0)) > 0:
-            return ["send_email"]
+            return ["send_alert"]
     
     anomaly_dfs = predict.expand(cost_category=feature_table.extra.get("cost_categories"))
 
+    notification_check = check_notify(anomaly_dfs=anomaly_dfs)
+
     report = generate_report(anomaly_dfs=anomaly_dfs)
 
-    EmailOperator(
-        task_id="send_email",
-        to=[],
-        subject="Anomalous activity in Snowflake usage",
-        html_content=report
+    send_alert = SlackAPIPostOperator(
+        trigger_rule="none_failed",
+        task_id="send_alert",
+        channel="#general",
+        text=report,
+        slack_conn_id=_SLACK_CONN_ID
     )
+
+    notification_check >> send_alert
 
 predict_isolation_forest()
