@@ -15,6 +15,8 @@ wandb_entity='snowstorm'
 _SNOWFLAKE_CONN_ID = "snowflake_ro"
 _SLACK_CONN_ID = "slack_api_alert"
 
+alert_channel_name = "#general"
+
 snowflake_hook = SnowflakeHook(_SNOWFLAKE_CONN_ID)
 
 usage_table = Dataset(uri="USAGE_IN_CURRENCY_DAILY")
@@ -124,7 +126,7 @@ def predict_isolation_forest():
     send_alert = SlackAPIPostOperator(
         trigger_rule="none_failed",
         task_id="send_alert",
-        channel="#general",
+        channel=alert_channel_name,
         text=report,
         slack_conn_id=_SLACK_CONN_ID
     )
