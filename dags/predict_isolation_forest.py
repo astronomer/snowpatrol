@@ -6,18 +6,19 @@ import pandas as pd
 import wandb
 from airflow import Dataset
 from airflow.decorators import dag, task
-from airflow.operators.email_operator import EmailOperator
+from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.dates import days_ago
 from statsmodels.tsa.seasonal import seasonal_decompose
+from snowflake.connector.pandas_tools import pd_writer
 
 wandb_project = os.getenv("WANDB_PROJECT")
 wandb_entity = os.getenv("WANDB_ENTITY")
 
-_SNOWFLAKE_CONN_ID = "snowflake_ro"
+_SNOWFLAKE_CONN_ID = "snowflake_admin"
 _SLACK_CONN_ID = "slack_api_alert"
 
-alert_emails = ["snowstorm-alerts-aaaalpfocb7aoj5x5ww3ui5qdm@astronomer.slack.com"]
+alert_channel_name = "#snowstorm-alerts"
 
 snowflake_hook = SnowflakeHook(_SNOWFLAKE_CONN_ID)
 
@@ -31,6 +32,11 @@ feature_table = Dataset(
 isolation_forest_model = Dataset(
     uri="isolation_forest_model",
     extra={"cost_models": ["total_usage", "compute", "storage"]},
+)
+
+usage_anomalies = Dataset(
+    uri="USAGE_ANOMALIES",
+    extra={"schema":"SNOWSTORM"}
 )
 
 
@@ -109,6 +115,16 @@ def predict_isolation_forest():
                     ORDER BY DATE ASC, USAGE DESC;"""
             )
 
+            snowflake_df = usage_df.reset_index(drop=True)
+            conn = snowflake_hook.get_sqlalchemy_engine()
+            snowflake_df.to_sql(usage_anomalies.uri,
+                                schema=usage_anomalies.extra.get("schema"),
+                                con=conn,
+                                if_exists="append",
+                                index=False,
+                                index_label=None,
+                                method=pd_writer)
+
             usage_md = usage_df[["DATE", "USAGE", "TYPE", "ACCOUNT"]].to_markdown()
 
             report = "```# Anomalous activity in Snowflake usage\n\n" + usage_md + "```"
@@ -116,6 +132,7 @@ def predict_isolation_forest():
             return report
         else:
             return None
+
 
     @task.branch()
     def check_notify(anomaly_dfs: [pd.DataFrame]):
@@ -130,12 +147,12 @@ def predict_isolation_forest():
 
     report = generate_report(anomaly_dfs=anomaly_dfs)
 
-    send_alert = EmailOperator(
+    send_alert = SlackAPIPostOperator(
         trigger_rule="none_failed",
         task_id="send_alert",
-        to=alert_emails,
-        subject="Snowflake Anomaly Alert",
-        html_content=report,
+        channel=alert_channel_name,
+        text=report,
+        slack_conn_id=_SLACK_CONN_ID
     )
 
     notification_check >> send_alert
