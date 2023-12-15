@@ -31,7 +31,7 @@ isolation_forest_model = Dataset(
 
 @dag(
     default_args={},
-    schedule=None,
+    schedule=[feature_table],
     start_date=days_ago(2),
     is_paused_upon_creation=False,
 )

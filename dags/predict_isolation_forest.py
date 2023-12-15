@@ -42,7 +42,7 @@ usage_anomalies = Dataset(
 
 @dag(
     default_args={},
-    schedule=[feature_table],
+    schedule=[feature_table, isolation_forest_model],
     start_date=days_ago(2),
     is_paused_upon_creation=False,
 )
