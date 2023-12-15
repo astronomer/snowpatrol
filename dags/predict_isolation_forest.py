@@ -9,8 +9,8 @@ from airflow.decorators import dag, task
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.dates import days_ago
-from statsmodels.tsa.seasonal import seasonal_decompose
 from snowflake.connector.pandas_tools import pd_writer
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 wandb_project = os.getenv("WANDB_PROJECT")
 wandb_entity = os.getenv("WANDB_ENTITY")
@@ -34,10 +34,7 @@ isolation_forest_model = Dataset(
     extra={"cost_models": ["total_usage", "compute", "storage"]},
 )
 
-usage_anomalies = Dataset(
-    uri="USAGE_ANOMALIES",
-    extra={"schema":"SNOWSTORM"}
-)
+usage_anomalies = Dataset(uri="USAGE_ANOMALIES", extra={"schema": "SNOWSTORM"})
 
 
 @dag(
@@ -115,15 +112,16 @@ def predict_isolation_forest():
                     ORDER BY DATE ASC, USAGE DESC;"""
             )
 
-            snowflake_df = usage_df.reset_index(drop=True)
-            conn = snowflake_hook.get_sqlalchemy_engine()
-            snowflake_df.to_sql(usage_anomalies.uri,
-                                schema=usage_anomalies.extra.get("schema"),
-                                con=conn,
-                                if_exists="append",
-                                index=False,
-                                index_label=None,
-                                method=pd_writer)
+            # TODO: Add this back in to save anomalies to Snowflake
+            # snowflake_df = usage_df.reset_index(drop=True)
+            # conn = snowflake_hook.get_sqlalchemy_engine()
+            # snowflake_df.to_sql(usage_anomalies.uri,
+            #                     schema=usage_anomalies.extra.get("schema"),
+            #                     con=conn,
+            #                     if_exists="append",
+            #                     index=False,
+            #                     index_label=None,
+            #                     method=pd_writer)
 
             usage_md = usage_df[["DATE", "USAGE", "TYPE", "ACCOUNT"]].to_markdown()
 
@@ -132,7 +130,6 @@ def predict_isolation_forest():
             return report
         else:
             return None
-
 
     @task.branch()
     def check_notify(anomaly_dfs: [pd.DataFrame]):
@@ -152,7 +149,7 @@ def predict_isolation_forest():
         task_id="send_alert",
         channel=alert_channel_name,
         text=report,
-        slack_conn_id=_SLACK_CONN_ID
+        slack_conn_id=_SLACK_CONN_ID,
     )
 
     notification_check >> send_alert
