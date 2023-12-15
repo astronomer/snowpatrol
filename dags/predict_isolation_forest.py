@@ -9,7 +9,7 @@ from airflow.decorators import dag, task
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.dates import days_ago
-from snowflake.connector.pandas_tools import pd_writer
+
 from statsmodels.tsa.seasonal import seasonal_decompose
 
 wandb_project = os.getenv("WANDB_PROJECT")
@@ -34,7 +34,7 @@ isolation_forest_model = Dataset(
     extra={"cost_models": ["total_usage", "compute", "storage"]},
 )
 
-usage_anomalies = Dataset(uri="USAGE_ANOMALIES", extra={"schema": "SNOWSTORM"})
+usage_anomalies = Dataset(uri="USAGE_ANOMALIES")
 
 
 @dag(
@@ -113,6 +113,7 @@ def predict_isolation_forest():
             )
 
             # TODO: Add this back in to save anomalies to Snowflake
+            # from snowflake.connector.pandas_tools import pd_writer
             # snowflake_df = usage_df.reset_index(drop=True)
             # conn = snowflake_hook.get_sqlalchemy_engine()
             # snowflake_df.to_sql(usage_anomalies.uri,
