@@ -1,0 +1,38 @@
+# Set the following GitHub Secrets before running the GitHub Actions Workflow for the first time:
+# - STAGING_ASTRO_DEPLOYMENT_ID
+# - STAGING_ASTRO_API_TOKEN
+# - PROD_ASTRO_DEPLOYMENT_ID
+# - PROD_ASTRO_API_TOKEN
+
+name: Astro Deploy
+
+on:
+    pull_request:
+      branches:
+        - dev
+        - main
+      types: [ closed ]
+
+jobs:
+  astro-deploy-dev:
+    if: github.event.pull_request.merged == true && github.ref == 'refs/heads/dev'
+    env:
+      ASTRO_API_TOKEN: ${{ secrets.DEV_ASTRO_API_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to Astro
+      uses: astronomer/deploy-action@v0.3
+      with:
+        deployment-id: ${{ secrets.DEV_ASTRO_DEPLOYMENT_ID }}
+        parse: true
+  astro-deploy-prod:
+    if: github.event.pull_request.merged == true && github.ref == 'refs/heads/main'
+    env:
+      ASTRO_API_TOKEN: ${{ secrets.PROD_ASTRO_API_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to Astro
+      uses: astronomer/deploy-action@v0.3
+      with:
+        deployment-id: ${{ secrets.PROD_ASTRO_DEPLOYMENT_ID }}
+        parse: true
