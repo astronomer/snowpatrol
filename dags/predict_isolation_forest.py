@@ -1,57 +1,69 @@
 import os
 import pickle
+from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
 import pandas as pd
 import wandb
-from airflow import Dataset
 from airflow.decorators import dag, task
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils.dates import days_ago
 
-from statsmodels.tsa.seasonal import seasonal_decompose
+from include.datasets import (
+    feature_metering_table,
+    isolation_forest_model,
+    output_anomalies_table,
+    raw_metering_table,
+)
 
+# Weights and Biases Configuration
 wandb_project = os.getenv("WANDB_PROJECT")
 wandb_entity = os.getenv("WANDB_ENTITY")
 
-_SNOWFLAKE_CONN_ID = "snowflake_admin"
-_SLACK_CONN_ID = "slack_api_alert"
+# Snowflake Configuration
+snowflake_conn_id = "snowflake_admin"
+snowflake_hook = SnowflakeHook(snowflake_conn_id)
 
-alert_channel_name = "#snowstorm-alerts"
+# Slack Configuration
+slack_conn_id = "slack_alert"
+slack_channel = "#snowstorm-alerts"
 
-snowflake_hook = SnowflakeHook(_SNOWFLAKE_CONN_ID)
-
-usage_table = Dataset(uri="DEMO.SNOWSTORM.USAGE_IN_CURRENCY_DAILY")
-
-feature_table = Dataset(
-    uri="DEMO.SNOWSTORM.USAGE_FEATURES",
-    extra={"cutoff_date": "'2022-12-17'", "cost_categories": ["compute", "storage"]},
-)
-
-isolation_forest_model = Dataset(
-    uri="isolation_forest_model",
-    extra={"cost_models": ["total_usage", "compute", "storage"]},
-)
-
-usage_anomalies = Dataset(uri="USAGE_ANOMALIES")
+doc_md = """
+         This DAG performs predictions of anomalous activity in Snowflake usage.
+         Send a Slack alert if anomalies are detected.
+         """
 
 
 @dag(
-    default_args={},
-    schedule=[feature_table, isolation_forest_model],
-    start_date=days_ago(2),
+    default_args={
+        "retries": 3,
+        "retry_delay": timedelta(minutes=5),
+        "depends_on_past": True,
+    },
+    schedule=[
+        feature_metering_table,
+        isolation_forest_model,
+    ],
+    start_date=datetime(2023, 1, 1),
     is_paused_upon_creation=False,
+    catchup=False,
+    doc_md=doc_md,
 )
 def predict_isolation_forest():
-    """
-    This DAG performs predictions of anomalous activity in Snowflake usage.
-    """
+    @task(
+        doc_md="Get a list of warehouses and use it to expand the predict task with Dynamic Task Mapping."
+    )
+    def get_warehouses() -> list[str]:
+        df = snowflake_hook.get_pandas_df(
+            f"""SELECT DISTINCT WAREHOUSE_NAME
+                FROM {feature_metering_table.uri}
+                ORDER BY WAREHOUSE_NAME ASC;"""
+        )
+        return df["WAREHOUSE_NAME"].tolist()
 
-    @task()
-    def predict(cost_category: str) -> pd.DataFrame:
-        """ """
-        model_name = f"isolation_forest_{cost_category}"
+    @task(doc_md="Predict anomalous activity in Snowflake usage.")
+    def predict(warehouse, data_interval_start=None) -> pd.DataFrame:
+        model_name = f"isolation_forest_{warehouse}"
 
         wandb.login()
 
@@ -64,69 +76,72 @@ def predict_isolation_forest():
             with open(model_file_path, "rb") as mf:
                 model = pickle.load(mf)
 
-            usage_df = snowflake_hook.get_pandas_df(
-                f"""SELECT DATE, {cost_category} 
-                  FROM {feature_table.uri} 
-                  ORDER BY DATE ASC;"""
-            )
-            # Snowflake returns columns in all caps, so we need to lowercase them
-            usage_df.columns = usage_df.columns.str.lower()
-
-            usage_df.date = pd.to_datetime(usage_df.date)
-            usage_df.set_index("date", inplace=True)
-            usage_df.fillna(value=0, inplace=True)
-
-            stl = seasonal_decompose(
-                usage_df[cost_category], model="additive", extrapolate_trend="freq"
+            metering_df = snowflake_hook.get_pandas_df(
+                f"""SELECT WAREHOUSE_NAME, 
+                           USAGE_DATE, 
+                           CREDITS_USED, 
+                           TREND, 
+                           SEASONAL, 
+                           RESIDUAL
+                    FROM {feature_metering_table.uri}
+                    WHERE   WAREHOUSE_NAME = '{warehouse}'
+                    AND     USAGE_DATE BETWEEN DATEADD(DAY, -3, '{data_interval_start}') AND '{data_interval_start}'
+                    ORDER BY USAGE_DATE ASC;"""
             )
 
-            usage_stationary = stl.resid.values.reshape(-1, 1)
-
-            usage_df["scores"] = model.decision_function(usage_stationary)
+            usage_stationary = metering_df["RESIDUAL"].values.reshape(-1, 1)
+            metering_df["SCORE"] = model.decision_function(usage_stationary)
             anomaly_threshold = artifact.metadata.get("anomaly_threshold")
+            anomalies_df = metering_df.loc[(metering_df["SCORE"] <= anomaly_threshold)]
 
-            anomalies_df = usage_df.iloc[-5:].loc[
-                (usage_df.scores <= anomaly_threshold)
-                & (usage_df[cost_category] > usage_df[cost_category].mean()),
-                [cost_category],
-            ]
+            # Write anomalies to Snowflake using Pandas
+            anomalies_df.to_sql(
+                name=output_anomalies_table.uri.split(".")[-1].lower(),
+                con=snowflake_hook.get_sqlalchemy_engine(),
+                if_exists="append",
+                index=False,
+                index_label=None,
+            )
 
             return anomalies_df
 
-    @task()
+    @task(doc_md="Generate a report of anomalous activity in Snowflake usage.")
     def generate_report(anomaly_dfs: [pd.DataFrame]) -> str | None:
         anomalies_df = pd.concat(anomaly_dfs, axis=0).reset_index()
 
-        report_dates = (
-            anomalies_df.date.apply(lambda x: str(x.date())).unique().tolist()
-        )
+        if len(anomalies_df) > 0:
+            min_date = anomalies_df["USAGE_DATE"].min()
+            max_date = anomalies_df["USAGE_DATE"].max()
+            warehouses = anomalies_df["WAREHOUSE_NAME"].unique().tolist()
 
-        if len(report_dates) > 0:
             usage_df = snowflake_hook.get_pandas_df(
-                f"""SELECT ACCOUNT_NAME AS ACCOUNT, 
-                            USAGE_DATE AS DATE, 
-                            USAGE_TYPE_CLEAN AS TYPE, 
-                            ROUND(USAGE_IN_CURRENCY, 2) AS USAGE 
-                        FROM {usage_table.uri} 
-                        WHERE DATE IN ({str(report_dates)[1:-1]})
-                    ORDER BY DATE ASC, USAGE DESC;"""
+                f"""SELECT WAREHOUSE_NAME,
+                           USAGE_DATE,
+                           CREDITS_USED,
+                           CREDITS_USED_COMPUTE,
+                           CREDITS_USED_CLOUD_SERVICES
+                     FROM {raw_metering_table.uri}
+                     WHERE USAGE_DATE BETWEEN DATEADD(DAY, -7, '{min_date}') AND DATEADD(DAY, 7, '{max_date}')
+                     AND WAREHOUSE_NAME IN ({','.join([f"'{w}'" for w in warehouses])})
+                     ORDER BY WAREHOUSE_NAME, USAGE_DATE ASC;
+                """
             )
+            usage_df["USAGE_DATE"] = pd.to_datetime(usage_df["USAGE_DATE"])
+            anomalies_df["USAGE_DATE"] = pd.to_datetime(anomalies_df["USAGE_DATE"])
 
-            # TODO: Add this back in to save anomalies to Snowflake
-            # from snowflake.connector.pandas_tools import pd_writer
-            # snowflake_df = usage_df.reset_index(drop=True)
-            # conn = snowflake_hook.get_sqlalchemy_engine()
-            # snowflake_df.to_sql(usage_anomalies.uri,
-            #                     schema=usage_anomalies.extra.get("schema"),
-            #                     con=conn,
-            #                     if_exists="append",
-            #                     index=False,
-            #                     index_label=None,
-            #                     method=pd_writer)
+            report_df = usage_df.merge(
+                right=anomalies_df[["WAREHOUSE_NAME", "USAGE_DATE", "SCORE"]],
+                how="left",
+                left_on=["USAGE_DATE", "WAREHOUSE_NAME"],
+                right_on=["USAGE_DATE", "WAREHOUSE_NAME"],
+            )
+            report_df["IS_ANOMALY"] = report_df["SCORE"].notnull()
 
-            usage_md = usage_df[["DATE", "USAGE", "TYPE", "ACCOUNT"]].to_markdown()
+            report_md = report_df.to_markdown()
 
-            report = "```# Anomalous activity in Snowflake usage\n\n" + usage_md + "```"
+            report = (
+                "```# Anomalous activity in Snowflake usage\n\n" + report_md + "```"
+            )
 
             return report
         else:
@@ -137,20 +152,15 @@ def predict_isolation_forest():
         if len(pd.concat(anomaly_dfs, axis=0)) > 0:
             return ["send_alert"]
 
-    anomaly_dfs = predict.expand(
-        cost_category=feature_table.extra.get("cost_categories")
-    )
-
+    anomaly_dfs = predict.expand(warehouse=get_warehouses())
     notification_check = check_notify(anomaly_dfs=anomaly_dfs)
-
     report = generate_report(anomaly_dfs=anomaly_dfs)
 
     send_alert = SlackAPIPostOperator(
-        trigger_rule="none_failed",
         task_id="send_alert",
-        channel=alert_channel_name,
+        channel=slack_channel,
         text=report,
-        slack_conn_id=_SLACK_CONN_ID,
+        slack_conn_id=slack_conn_id,
     )
 
     notification_check >> send_alert
