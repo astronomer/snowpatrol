@@ -10,13 +10,9 @@ from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-from include.datasets import (
-    calendar_table,
-    feature_metering_table,
-    metrics_metering_table,
-    raw_metering_table,
-    source_metering_table,
-)
+from include.datasets import (common_calendar_table, feature_metering_table,
+                              metrics_metering_table, raw_metering_table,
+                              source_metering_table)
 from include.exceptions import DataValidationFailed
 
 # Snowflake Configuration
@@ -36,7 +32,7 @@ doc_md = f"""
 
         #### Tables
         - [{source_metering_table.uri}](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
-        - {calendar_table.uri} - A simple calendar table populated for 5 years starting on 2023-01-01
+        - {common_calendar_table.uri} - A simple calendar table populated for 5 years starting on 2023-01-01
         - {raw_metering_table.uri} - A source table to accumulate the metering data
         - {metrics_metering_table.uri} - A metrics table for the metering data with added statistics like SMA and STD
         - {feature_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
@@ -49,7 +45,7 @@ with DAG(
         "retry_delay": timedelta(minutes=5),
         "on_failure_callback": send_slack_notification(
             slack_conn_id="slack_alert",
-            text="The task {{ ti.task_id }} failed. Check the logs.",  # TODO: Add link to logs
+            text="The task {{ ti.task_id }} failed. Check the logs.",
             channel=slack_channel,
         ),
     },
@@ -59,43 +55,8 @@ with DAG(
     max_active_runs=1,
     doc_md=doc_md,
 ):
-    load_calendar_table = SQLExecuteQueryOperator(
-        doc_md="""
-            Task to create a calendar table with 5 years starting on dag_start_date
-            """,
-        task_id="load_calendar_table",
-        conn_id=snowflake_conn_id,
-        outlets=calendar_table,
-        sql=f"""
-            CREATE OR REPLACE TABLE {calendar_table.uri} (
-                USAGE_DATE      DATE        NOT NULL,
-                YEAR            SMALLINT    NOT NULL,
-                MONTH           SMALLINT    NOT NULL,
-                MONTH_NAME      CHAR(3)     NOT NULL,
-                DAY_OF_MON      SMALLINT    NOT NULL,
-                DAY_OF_WEEK     VARCHAR(9)  NOT NULL,
-                WEEK_OF_YEAR    SMALLINT    NOT NULL,
-                DAY_OF_YEAR     SMALLINT    NOT NULL
-            )
-            AS
-            WITH dates AS (
-                SELECT '{{{{ dag.start_date }}}}'::DATE -1 +
-                  ROW_NUMBER() OVER(ORDER BY 0) AS USAGE_DATE
-                FROM TABLE(GENERATOR(ROWCOUNT => 1826)) -- 5 years
-            )
-            SELECT  USAGE_DATE,
-                    YEAR(USAGE_DATE),
-                    MONTH(USAGE_DATE),
-                    MONTHNAME(USAGE_DATE),
-                    DAY(USAGE_DATE),
-                    DAYOFWEEK(USAGE_DATE),
-                    WEEKOFYEAR(USAGE_DATE),
-                    DAYOFYEAR(USAGE_DATE)
-            FROM dates;
-        """,
-    )
-
     load_raw_metering_table = SQLExecuteQueryOperator(
+        # TODO: This should be an incremental load with the day's data only
         doc_md="""
             Task to persist the data from the view
             SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY.
@@ -162,6 +123,42 @@ with DAG(
             """,
     )
 
+    load_common_calendar_table = SQLExecuteQueryOperator(
+        doc_md="""
+                Task to create a calendar table with 5 years starting on dag_start_date
+                """,
+        task_id="load_calendar_table",
+        conn_id=snowflake_conn_id,
+        outlets=common_calendar_table,
+        sql=f"""
+                CREATE OR REPLACE TABLE {common_calendar_table.uri} (
+                    USAGE_DATE      DATE        NOT NULL,
+                    YEAR            SMALLINT    NOT NULL,
+                    MONTH           SMALLINT    NOT NULL,
+                    MONTH_NAME      CHAR(3)     NOT NULL,
+                    DAY_OF_MON      SMALLINT    NOT NULL,
+                    DAY_OF_WEEK     VARCHAR(9)  NOT NULL,
+                    WEEK_OF_YEAR    SMALLINT    NOT NULL,
+                    DAY_OF_YEAR     SMALLINT    NOT NULL
+                )
+                AS
+                WITH dates AS (
+                    SELECT '{{{{ dag.start_date }}}}'::DATE -1 +
+                      ROW_NUMBER() OVER(ORDER BY 0) AS USAGE_DATE
+                    FROM TABLE(GENERATOR(ROWCOUNT => 1826)) -- 5 years
+                )
+                SELECT  USAGE_DATE,
+                        YEAR(USAGE_DATE),
+                        MONTH(USAGE_DATE),
+                        MONTHNAME(USAGE_DATE),
+                        DAY(USAGE_DATE),
+                        DAYOFWEEK(USAGE_DATE),
+                        WEEKOFYEAR(USAGE_DATE),
+                        DAYOFYEAR(USAGE_DATE)
+                FROM dates;
+            """,
+    )
+
     @task(
         doc_md="""We expect to have metering data for all dates between dag_start_date 
                   and the current execution. This task ensures the raw table has been 
@@ -169,6 +166,7 @@ with DAG(
                   can manually backfill the missing dates."""
     )
     def validate_raw_metering_table(dag=None, data_interval_start=None):
+        # TODO: Improve this to return a list of missing dates in the error message
         dag_start_date = dag.start_date.strftime("%Y-%m-%d")
         data_interval_start = data_interval_start.strftime("%Y-%m-%d")
 
@@ -185,7 +183,6 @@ with DAG(
 
         missing_date_count = snowflake_hook.get_first(query)[0]
 
-        # TODO: Improve this to return a list of missing dates in the error message
         if missing_date_count > 0:
             raise DataValidationFailed(
                 f"{missing_date_count} missing dates found in table {metrics_metering_table.uri}"
@@ -218,7 +215,7 @@ with DAG(
                 FROM virtual_warehouses
                 CROSS JOIN (
                     SELECT USAGE_DATE
-                    FROM {calendar_table.uri}
+                    FROM {common_calendar_table.uri}
                     WHERE USAGE_DATE <= '{{{{ ds }}}}'
                 ) AS calendar
             ), 
@@ -284,7 +281,8 @@ with DAG(
         doc_md="""Generate our Feature table by decomposing the seasonality of the metering data
                   into trend, seasonal, and residual components. We use STL decomposition for simplicity.""",
     )
-    def feature_engineering_metering_table(logical_date=None):
+    def load_feature_metering_table(logical_date=None):
+        # TODO: Version the Feature Metering Table
         ds = logical_date.strftime("%Y-%m-%d")
 
         decomposed_metering_dfs = []
@@ -314,7 +312,9 @@ with DAG(
                     extrapolate_trend="freq",
                 )
             except ValueError:
-                logging.warning(f"Could not perform seasonal_decompose on {warehouse}. Skipping.")
+                logging.warning(
+                    f"Could not perform seasonal_decompose on {warehouse}. Skipping."
+                )
                 continue
             stl_df = pd.DataFrame(
                 {
@@ -328,6 +328,10 @@ with DAG(
             decomposed_df.reset_index(inplace=True)
             decomposed_metering_dfs.append(decomposed_df)
 
+        if decomposed_metering_dfs == []:
+            logging.warning("No decomposed data to write to feature_metering_table.")
+            return
+
         decomposed_metering_df = pd.concat(decomposed_metering_dfs)
 
         decomposed_metering_df.to_sql(
@@ -335,7 +339,7 @@ with DAG(
             con=snowflake_hook.get_sqlalchemy_engine(),
             dtype={
                 "USAGE_DATE": sqlalchemy.types.Date,
-                "CREDITS_USED": sqlalchemy.types.Numeric(38,9),
+                "CREDITS_USED": sqlalchemy.types.Numeric(38, 9),
                 "TREND": sqlalchemy.types.Float,
                 "SEASONAL": sqlalchemy.types.Float,
                 "RESIDUAL": sqlalchemy.types.Float,
@@ -346,8 +350,8 @@ with DAG(
         )
 
     (
-            [load_raw_metering_table, load_calendar_table]
-            >> validate_raw_metering_table()
-            >> load_metrics_metering_table
-            >> feature_engineering_metering_table()
+        [load_raw_metering_table, load_common_calendar_table]
+        >> validate_raw_metering_table()
+        >> load_metrics_metering_table
+        >> load_feature_metering_table()
     )

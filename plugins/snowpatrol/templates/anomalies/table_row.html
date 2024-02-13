@@ -1,0 +1,18 @@
+{% block row %}
+<tr>
+    <th scope="row">{{ row.id }}</th>
+    <td>{{ row.prediction_datetime }}</td>
+    <td>{{ row.warehouse_name }}</td>
+    <td>{{ row.usage_date }}</td>
+    <td>{{ row.credits_used }}</td>
+    <td>{{ row.trend }}</td>
+    <td>{{ row.seasonal }}</td>
+    <td>{{ row.residual }}</td>
+    <td>{{ row.score }}</td>
+    <td>
+        <button class="btn btn-primary" hx-get="/edit-form/{{ row.id }}">
+            Confirm
+        </button>
+    </td>
+</tr>
+{% endblock %}

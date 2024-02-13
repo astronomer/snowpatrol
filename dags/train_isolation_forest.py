@@ -15,11 +15,7 @@ from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from sklearn.ensemble import IsolationForest
 
-from include.datasets import (
-    feature_metering_table,
-    isolation_forest_model,
-    metrics_metering_table,
-)
+from include.datasets import feature_metering_table, isolation_forest_model
 
 # Snowflake Configuration
 snowflake_conn_id = "snowflake_admin"
@@ -36,7 +32,7 @@ wandb_entity = os.getenv("WANDB_ENTITY")
 # Model Configuration
 model_config = {
     "architecture": "Isolation Forest",
-    "dataset": metrics_metering_table.uri,
+    "dataset": feature_metering_table.uri,
     "threshold_cutoff": 3,  # we will assume x STDDev from the mean as anomalous
 }
 
@@ -47,6 +43,9 @@ doc_md = """
     each warehouse using Dynamic Task Mapping if data drift is detected.
     Setting the force_retrain parameter to True will force retraining of all models.
     We force retraining of models if we don't have enough data to detect drift.
+    
+     #### Tables
+        - {feature_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
     """
 
 with DAG(
@@ -172,16 +171,19 @@ with DAG(
 
         wandb.login()
 
-        with TemporaryDirectory() as model_dir, wandb.init(
-            project=wandb_project,
-            entity=wandb_entity,
-            dir=model_dir,
-            name=model_name,
-            group=group_name,
-            job_type="train_isolation_forest",
-            resume="allow",
-            force=True,
-            config=model_config,
+        with (
+            TemporaryDirectory() as model_dir,
+            wandb.init(
+                project=wandb_project,
+                entity=wandb_entity,
+                dir=model_dir,
+                name=model_name,
+                group=group_name,
+                job_type="train_isolation_forest",
+                resume="allow",
+                force=True,
+                config=model_config,
+            ),
         ):
             df = snowflake_hook.get_pandas_df(
                 sql=f"""SELECT USAGE_DATE, 
@@ -266,6 +268,6 @@ with DAG(
     drifted_warehouses = detect_drift_metering(
         force_retrain="{{ params.force_retrain }}",
         snowflake_conn_config=snowflake_hook._get_conn_params(),  # TODO: Improve this to use public methods
-        feature_metering_table=metrics_metering_table.uri,
+        feature_metering_table=feature_metering_table.uri,
     )
     train_isolation_forest.expand(warehouse=drifted_warehouses)

@@ -14,4 +14,3 @@ Version 2.0.0
   One table will allow users to annotate anomalies. 
   We can then use this to retrain the model in a more supervised approach.
 - Added pre-commit hooks to lint and format with Ruff and remove outputs from notebooks
-- Changing the name to snowsurge. No-one remembers Snowstorm and it's not fitting with what the solution does.

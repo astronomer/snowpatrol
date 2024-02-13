@@ -2,9 +2,9 @@
   <img src="images/logo.png" width="300" align="right"/>
 </p>
 
-# Snowsurge
+# Snowpatrol
 
-Snowsurge is an application for anomaly detection and alerting of Snowflake usage powered by Machine Learning.
+Snowpatrol is an application for anomaly detection and alerting of Snowflake usage powered by Machine Learning.
 Additionally, this application provides a reference implementation and template for Machine Learning Operations (MLOps)
 with Apache Airflow.
 
@@ -84,7 +84,7 @@ This project aims to identify anomalous usage activity in order to allow managem
 
 Snowflake users incur costs for compute, storage, marketplace and various other services. Of these, compute is the most
 significant. Data exploration and experimentation was performed (
-see [notebook](include/snowsurge.ipynb)) to evaluate the ability to identify anomalies for all warehouses. 
+see [notebook](notebooks/snowpatrol.ipynb)) to evaluate the ability to identify anomalies for all warehouses. 
 While storage usage can increase quickly the relative cost is not significant (<1% of total billing). 
 Production models, therefore, will monitor compute usage specifically.
 
@@ -176,7 +176,7 @@ is updated nightly with metering data for all warehouses in the main account of 
   <img src="images/model_details.png" width="600" align="right"/>
 </p>
 
-This project uses [Weights and Biases](https://wandb.ai/snowsurge/snowsurge) for experiment and model tracking.
+This project uses [Weights and Biases](https://wandb.ai/snowpatrol/snowpatrol) for experiment and model tracking.
 The DAG run_id of the training DAG to group all model instances together. Each model has an `anomaly_threshold`
 parameter which is `threshold_cutoff` (default is 3) standard deviations from the mean of the stationary (decomposed
 residual) scored data. Additionally, artifacts are captured to visualize the seasonal decomposition and the anomaly
@@ -235,14 +235,14 @@ To use this template you need the following:
 
 2. Clone this repository:
     ```bash
-    git clone https://github.com/astronomer/snowsurge
-    cd snowsurge
+    git clone https://github.com/astronomer/snowpatrol
+    cd snowpatrol
     ```
 
    3. Create a file called `.env` with the following connection strings and environment variables. 
       To make this easier, we have included a .env.example file that you can rename to .env.
 
-       - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowsurge` entity and `snowsurge`
+       - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowpatrol` entity and `snowpatrol`
          project.
          Example:
          ```
@@ -288,8 +288,8 @@ To use this template you need the following:
     ```
     - [Deploy](https://docs.astronomer.io/astro/deploy-code) the Astro project.
     ```bash
-    astro deployment create -n 'snowsurge'
-    astro deployment variable update -lsn 'snowsurge'
+    astro deployment create -n 'snowpatrol'
+    astro deployment variable update -lsn 'snowpatrol'
     astro deploy -f
     ```
 
@@ -302,4 +302,4 @@ To use this template you need the following:
 
 ## Feedback
 
-Give us your feedback, comments and ideas at https://github.com/astronomer/snowsurge/discussions
+Give us your feedback, comments and ideas at https://github.com/astronomer/snowpatrol/discussions
