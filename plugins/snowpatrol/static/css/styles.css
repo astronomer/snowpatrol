@@ -1,0 +1,26 @@
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+tr.htmx-swapping td {
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+}
+
+td,
+th {
+    border: 1px solid #383737;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+
+.top-buffer {
+    margin-top:15px;
+    margin-bottom: 15px;
+}

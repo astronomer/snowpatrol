@@ -11,4 +11,6 @@ webserver_config.py
 airflow.cfg
 airflow.db
 
+sql/
 .idea
+notebooks/.ipynb_checkpoints/*

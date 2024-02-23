@@ -1,0 +1,6 @@
+[tool.ruff]
+extend-include = ["*.ipynb"]
+ignore = ["E712"]
+
+[tool.isort]
+skip_glob = [".astro/*"]
