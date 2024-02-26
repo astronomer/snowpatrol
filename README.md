@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="include/images/logo.png" width="300" align="right"/>
+  <img src="images/logo.png" width="300" align="right"/>
 </p>
 
-# Snowstorm
+# Snowpatrol
 
-Snowstorm is an application for anomaly detection and alerting of Snowflake usage powered by Machine Learning.  
+Snowpatrol is an application for anomaly detection and alerting of Snowflake usage powered by Machine Learning.
 Additionally, this application provides a reference implementation and template for Machine Learning Operations (MLOps)
 with Apache Airflow.
 
@@ -12,20 +12,18 @@ with Apache Airflow.
 
 In addition to implementing a specific use-case. This reference implementation provides a framework for general
 implementation of MLOps. As such there are a couple of themes present in the framework which can be extended (or not
-used if appropriate) for
-use-case specific needs.
+used if appropriate) for use-case specific needs.
 
 <br clear="left"/>
 
 ### Operationalize models while allowing Data Scientist choice.
 
-For MLOps the focus is on deployment, scoring, evaluation, monitoring, alerting and periodic retraining of models.  
+For MLOps the focus is on deployment, scoring, evaluation, monitoring, alerting and periodic retraining of models.
 As such we assume that Data Scientists have used their tool of choice for data exploration, model development and
-experimentation. The starting point, therefore, may be a Jupyter notebook or other code provided by a Data Scientist or
-checked into a
-code repository.
+experimentation. The starting point may be a Jupyter notebook or other code provided by a Data Scientist and
+checked into a code repository. You will find the starter notebook for this project in the `notebooks` folder.
 
-<p><img src="include/images/datasets.png" width="400" align="right"/></p>
+<p><img src="images/datasets.png" width="400" align="right"/></p>
 
 ### Use [Data aware scheduling](https://docs.astronomer.io/learn/airflow-datasets) to separate workflows based on various scheduling requirements.
 
@@ -48,13 +46,13 @@ operations.
 
 ### Score in batch.
 
-While some use-cases require low-latency inference and online scoring many will be most efficient with batch scoring.
+While some use cases require low-latency inference and online scoring many will be most efficient with batch scoring.
 Airflow supports batch scoring at various intervals. Model predictions can be made in Airflow tasks by importing a model
 or by REST calls to a deployed endpoint.
 
 ### Leverage centralized auditing and lineage.
 
-By combining MLOps with the rest of an organizations Data Ops Airflow provides a single view to assist in
+By combining MLOps with the rest of an organization's Data Ops Airflow provides a single view to assist in
 reproducibility and explainability. With the ability to track backwards from model predictions to model training and the
 datasets that were used ML Engineers and Data Scientists can more easily identify issues or perform post-mortem
 analysis.
@@ -67,15 +65,10 @@ these services and allows logging models after training and downloading models d
 are available for tools
 like [SageMaker](https://registry.astronomer.io/modules?query=sagemaker), [VertexAI](https://registry.astronomer.io/modules?query=vertexai), [AzureML](https://github.com/Azure/airflow-provider-azure-machinelearning)
 and [Databricks](https://registry.astronomer.io/providers/apache-airflow-providers-databricks/). Additionally, many NLP
-use-cases will rely on a vector database and Airflow includes providers for services
+use cases will rely on a vector database and Airflow includes providers for services
 like [Weaviate](https://registry.astronomer.io/providers/apache-airflow-providers-weaviate), [Pinecone](https://registry.astronomer.io/providers/apache-airflow-providers-pinecone), [pgvector](https://registry.astronomer.io/providers/apache-airflow-providers-pgvector), [OpenSearch](https://registry.astronomer.io/providers/apache-airflow-providers-opensearch)
 as well as LLM providers like [OpenAI](https://registry.astronomer.io/providers/apache-airflow-providers-openai)
 and [Cohere](https://registry.astronomer.io/providers/apache-airflow-providers-cohere).
-
-todo
-multiple models (c/c, a/b)
-backfill
-worker queues
 
 ## Project Structure
 
@@ -89,28 +82,29 @@ This project aims to identify anomalous usage activity in order to allow managem
 
 ### Modeling
 
-Snowflake users incur cost for compute, storage, marketplace and various other services. Of these compute is the most
-significant but others cannot be ignored. Data exploration and experimentation was performed (
-see [notebook](include/snowstorm.ipynb)) to evaluate the ability to identify anomalies with compute, storage and a sum
-of all costs ("total_usage"). While storage usage can increase quickly the relative cost is not significant and will
-also be captured in the total_usage. Production models, therefore, will monitor compute usage specifically as well as
-combined usage.
+Snowflake users incur costs for compute, storage, marketplace and various other services. Of these, compute is the most
+significant. Data exploration and experimentation was performed (
+see [notebook](notebooks/snowpatrol.ipynb)) to evaluate the ability to identify anomalies for all warehouses. 
+While storage usage can increase quickly the relative cost is not significant (<1% of total billing). 
+Production models, therefore, will monitor compute usage specifically.
 
 <p align="center">
-  <img src="include/images/decompose.png" width="400" align="left"/>
-</p>  
+  <img src="images/decompose.png" width="400" align="left"/>
+</p>
 
 Without specific labeled data we will use an unsupervised approach with an [Isolation Forest]() model. Separate models
-will be trained for total_usage and compute using dynamic tasks. Because the usage demonstrates both seasonality and
+will be trained for each warehouses using dynamic tasks. Because the usage demonstrates both seasonality and
 increasing trend the model will be trained on decomposed residuals factoring out both seasonality and trend.
 <br clear="left"/>
 
 ### DAGs
 
-This project separates data engineering, feature engineering, training, prediction and monitoring into separate DAGs
-with Airflow Dataset scheduling.
+This project separates all the steps of the ML pipeline into 3 different Dags.
+`Data Preparation` handles data extraction, transformation and feature engineering.
+`Train Isolation Forest` handles drift detection and model training
+`Predict Isolation Forest` handles predictions, monitoring and alerting.
 
-<p align="center"><img src="include/images/dags.png" width="800"/></p>
+<p align="center"><img src="images/dags.png" width="800"/></p>
 
 Note: For this use-case the DAGs are very small with only a couple of tasks each. As a reference implementation the
 use-case was selected because of its simplicity and to highlight the framework without distractions of the specific
@@ -120,16 +114,19 @@ use-case.
 
 Snowflake runs nightly jobs to capture usage statistics for billing (see Dataset section below.). However, the usage
 data is only available to administrators by default. Additionally there are different levels of aggregation which happen
-at the "organization" and "account" levels. The data engineering DAG is somewhat of a placeholder as its primary
-function is to extract organization-level usage to the project's schema and database for access by non-admin users.
-Downstream feature engineering will pivot on the `USAGE_TYPE` column which, by default, contains whitespace. To simplify
-the pivot the whitespaced features are converted to snake-cased. The Data engineering DAG runs nightly.
+at the "organization" and "account" levels. The data engineering DAG extracts organization-level usage 
+to the project's schema and database for access by non-admin users.
+
+##### Data Validation
+
+Data validation is performed after the raw data is sourced from Snowflake views. 
+This is to ensure that no data is missing before we perform feature engineering and model training.
+In the future, Soda Core and Great Expectations could be leveraged for further data validation.
 
 #### Feature Engineering
 
 Usage data is comprised of usage across one or more accounts within the Snowflake Organization. Models will be trained
-on both total_usage and compute usage at the organization level. Features are extracted by pivoting on the USAGE_TYPE
-column with summation across accounts. The feature engineering DAG is triggered from the data engineering DAG.
+on all warehouses at the organization level. The feature engineering task is part of the data preparation DAG.
 
 #### Model Training
 
@@ -137,16 +134,25 @@ Multiple models and model instances are trained and stored in the model catalog 
 tasks will use the `latest` tag.
 
 - Champion Model:  The baseline Isolation Forest model training is triggered manually for the initial model and uses
-  dynamic tasks to train models for cost categories (initially "total_usage" and "compute"). Other cost models can be
-  trained by updating the `cost_models` extra of the `isolation_forest_model` Dataset.
-- Challenger Model: TODO
+  dynamic tasks to train models.
+- Challenger Model: In a future phase of this project, the champion model will be retrained periodically and a
+  challenger model will be trained with hyperparameter optimization. The challenger model will be evaluated and
+  promoted to champion if it outperforms the current champion.
+
+##### Data Drift detection
+
+Prior to training a new model, the training DAG will check for data drift using KS. 
+If the usage data for a particular warehouse as drifted compared to the historical data, the model will be flagged to be retrained.
+
+It is possible to bypass this check by setting the `force_retrain` parameter to `True` in the DAG. 
+This forces the model to be retrained regardless of the drift detection results.
 
 #### Predictions and Alerting
 
 Predictions are made in batch with dynamic tasks for each model instance. Identified anomalies are grouped and a report
 is generated in Markdown format. Alerts are sent as Slack messages for notification.
 <p>
-  <img src="include/images/alert.png" width="500"/>
+  <img src="images/alert.png" width="500"/>
 </p>
 <br clear="center"/>
 
@@ -161,16 +167,16 @@ todo
 ### Data
 
 This project uses pre-computed data which is available in the `SNOWFLAKE` scheme for all accounts.
-The `SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY` [view](https://docs.snowflake.com/en/sql-reference/organization-usage/usage_in_currency_daily)
-is updated nightly with usage data for all usage types in all accounts in the organization.
+The `SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY` [view](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
+is updated nightly with metering data for all warehouses in the main account of the organization.
 
 ### Experiment Tracking
 
 <p>
-  <img src="include/images/model_details.png" width="600" align="right"/>
+  <img src="images/model_details.png" width="600" align="right"/>
 </p>
 
-This project uses [Weights and Biases](https://wandb.ai/snowstorm/snowstorm) for experiment and model tracking.
+This project uses [Weights and Biases](https://wandb.ai/snowpatrol/snowpatrol) for experiment and model tracking.
 The DAG run_id of the training DAG to group all model instances together. Each model has an `anomaly_threshold`
 parameter which is `threshold_cutoff` (default is 3) standard deviations from the mean of the stationary (decomposed
 residual) scored data. Additionally, artifacts are captured to visualize the seasonal decomposition and the anomaly
@@ -179,20 +185,18 @@ anomaly_threshold metric.
 
 The link to the WANDB "run" is listed in the task logs. Future work will include integrations with a new provider which
 will cross-link WandB runs with DAG runs.
-TODO: add wandb link in operator extra links
+
 <br clear="right"/>
 
 ### Model Registry
 
 <p>
-  <img src="include/images/model_registry.png" width="400" align="right"/>
+  <img src="images/model_registry.png" width="400" align="right"/>
 </p>
 
 Successful runs of the training DAG tag models as "latest" in the [Model Registry](https://wandb.ai/registry/model).
 Downstream DAGs use the "latest" tag for scoring, evaluation and monitoring. Future work will include CI/CD integrations
 which notify administrators of a new model for manual promotion to "latest".
-
-TODO: tag models for manual review.
 
 <br clear="right"/>
 
@@ -231,41 +235,34 @@ To use this template you need the following:
 
 2. Clone this repository:
     ```bash
-    git clone https://github.com/astronomer/snowstorm
-    cd snowstorm
+    git clone https://github.com/astronomer/snowpatrol
+    cd snowpatrol
     ```
 
-3. Create a file called `.env` with the following connection strings and environment variables.
+   3. Create a file called `.env` with the following connection strings and environment variables. 
+      To make this easier, we have included a .env.example file that you can rename to .env.
 
-    - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowstorm` entity and `snowstorm`
-      project.
-      Example:
-      ```
-      WANDB_API_KEY:'xxxxxxxxxxx'
-      ```
+       - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowpatrol` entity and `snowpatrol`
+         project.
+         Example:
+         ```
+         WANDB_API_KEY:'xxxxxxxxxxx'
+         ```
 
-    - `AIRFLOW_CONN_SNOWFLAKE_ADMIN`: This connection string is used for extracting the usage data to the project
-      schema.
-      Orgadmin role is not specifically needed but the user should have access to a role with permissions to read
-      the `SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY` [view](https://docs.snowflake.com/en/sql-reference/organization-usage/usage_in_currency_daily)
-      Example:
-      ```
-      AIRFLOW_CONN_SNOWFLAKE_ADMIN='{"conn_type": "snowflake", "login": "<>", "password": "<", "schema": "<", "extra": {"account": "<>", "warehouse": "<>", "role": "ORGADMIN", "authenticator": "snowflake", "application": "AIRFLOW"}}'
-      ```
+       - `AIRFLOW_CONN_SNOWFLAKE_ADMIN`: This connection string is used for extracting the usage data to the project
+         schema.
+         Orgadmin role is not specifically needed but the user should have access to a role with permissions to read
+         the `SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY` [view](https://docs.snowflake.com/en/sql-reference/organization-usage/usage_in_currency_daily)
+         Example:
+         ```
+         AIRFLOW_CONN_SNOWFLAKE_ADMIN='{"conn_type": "snowflake", "login": "<>", "password": "<", "schema": "<", "extra": {"account": "<>", "warehouse": "<>", "role": "ORGADMIN", "authenticator": "snowflake", "application": "AIRFLOW"}}'
+         ```
 
-    - `AIRFLOW_CONN_SNOWFLAKE_RO`: Optionally add a second account that has readonly access to the feature table being
-      generated. This account is in accordance with "least privleges" to limit use of the role which reads with admin
-      privileges.
-      Example:
-      ```
-      AIRFLOW_CONN_SNOWFLAKE_RO='{"conn_type": "snowflake", "login": "<>", "password": "<>", "schema": "<PROJECT_SCHEMA>", "extra": {"account": "<>", "warehouse": "<>", "database": "<PROJECT_DATABASE>", "region": "", "role": "<>", "authenticator": "snowflake", "application": "AIRFLOW"}}'
-      ```
-
-    - `AIRFLOW_CONN_SLACK_API_ALERT`: Add a Slack token for sending Slack alerts.
-      Example:
-      ```
-      AIRFLOW_CONN_SLACK_API_ALERT='{"conn_type": "slack", "password": "xoxb-<>"}'
-      ```
+       - `AIRFLOW_CONN_SLACK_API_ALERT`: Add a Slack token for sending Slack alerts.
+         Example:
+         ```
+         AIRFLOW_CONN_SLACK_API_ALERT='{"conn_type": "slack", "password": "xoxb-<>"}'
+         ```
 
 4. Start Apache Airflow
     ```sh
@@ -278,20 +275,10 @@ To use this template you need the following:
     - **username**: `admin`
     - **password**: `admin`
 
-5. Run the `data_engineering` DAG:
-    ```bash
-    astro dev run dags unpause data_engineering
-    astro dev run dags trigger data_engineering
-    ```
-   After the `data_engineering` DAG runs it will trigger the `feature_engineering` DAG.
+5. Run the `data_preparation` DAG:
+   After the `data_preparation` DAG runs it will trigger the `train_isolation_forest` DAG.
 
-6. If this the first setup run the `train_isolation_forest` DAG:
-    ```bash
-    astro dev run dags unpause train_isolation_forest
-    astro dev run dags trigger train_isolation_forest
-    ```
-   After the `train_isolation_forest` and `feature_engineering` DAGs runs Airflow will trigger
-   the `predict_isolation_forest` DAG.
+6. After the `data_preparation` and `train_isolation_forest` DAGs run, Airflow will trigger the `predict_isolation_forest` DAG.
 
 7. Deploy to Astro:
    Complete the following steps to promote from Airflow running locally to a production deployment in Astro.
@@ -301,18 +288,18 @@ To use this template you need the following:
     ```
     - [Deploy](https://docs.astronomer.io/astro/deploy-code) the Astro project.
     ```bash
-    astro deployment create -n 'snowstorm'
-    astro deployment variable update -lsn 'snowstorm'
-    astro deploy -fn 'ask astro dev'
+    astro deployment create -n 'snowpatrol'
+    astro deployment variable update -lsn 'snowpatrol'
+    astro deploy -f
     ```
 
    The `variable update` will load variables from the `.env` file that was created in step #3.
 
-8. Login to astro and ensure that the `data_engineering` DAG is unpaused. Every night
-   the `data_engineering`, `feature_engineering`, `predict_isolation_forest` and `monitoring` DAGs will run. Alerts
-   will be sent to the channel specified in `alert_channel_name` in the `predict_isolation_forest` and `monitoring`
+8. Login to astro and ensure that the `data_preparation` DAG is unpaused. Every night
+   the `data_preparation`, `train_isolation_forest` and `predict_isolation_forest` DAGs will run. Alerts
+   will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` and `monitoring`
    DAGs.
 
 ## Feedback
 
-Give us your feedback, comments and ideas at https://github.com/astronomer/ask-astro/discussions
+Give us your feedback, comments and ideas at https://github.com/astronomer/snowpatrol/discussions

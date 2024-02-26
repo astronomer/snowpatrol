@@ -1,0 +1,58 @@
+{% extends base_template %}
+
+{% block head_js %}
+    {{ super() }}
+    <script src="{{ url_for('snowpatrol.static', filename='js/htmx.min.js') }}"></script>
+    <script src="{{ url_for('snowpatrol.static', filename='js/idiomorph.min.js') }}"></script>
+    <script src="{{ url_for('snowpatrol.static', filename='js/plotly.min.js') }}"></script>
+{% endblock %}
+
+{% block head_css %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('snowpatrol.static',filename='css/styles.css') }}">
+{% endblock %}
+
+{% block page_title %}
+    Anomaly Annotation
+{% endblock %}
+
+{% block content %}
+    <div id="content">
+        <div class="container-fluid">
+            <div class="row top-buffer">
+                <div class="col-md">
+                    <h1>Anomalies Annotation</h1>
+                </div>
+            </div>
+            <div class="row top-buffer">
+                <div class="col-md">
+                    <div class="row">
+                        <div class="col-md">
+                            {% include 'anomalies/plot.html' %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row top-buffer">
+                    <div class="col-md">
+
+                        <table class="table table-bordered table-striped table-hover">
+                            <thead>
+                            <tr>
+                                {% for column in table_columns %}
+                                    {% include 'anomalies/table_header.html' %}
+                                {% endfor %}
+                            </tr>
+                            </thead>
+                            <tbody id="table-body" hx-target="closest tr" hx-swap="outerHTML swap:0.5s">
+                            {% for row in table_data %}
+                                {% include 'anomalies/table_row.html' %}
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
