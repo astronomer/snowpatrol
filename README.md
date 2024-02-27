@@ -8,6 +8,8 @@ Snowpatrol is an application for anomaly detection and alerting of Snowflake usa
 Additionally, this application provides a reference implementation and template for Machine Learning Operations (MLOps)
 with Apache Airflow.
 
+![anomalies.png](images%2Fanomalies.png)
+
 ## MLOps Themes
 
 In addition to implementing a specific use-case. This reference implementation provides a framework for general
