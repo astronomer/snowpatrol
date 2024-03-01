@@ -1,8 +1,11 @@
-astro
-.git
 .env
-airflow_settings.yaml
-logs/
+.git
 .venv
-airflow.db
 airflow.cfg
+airflow.db
+airflow_settings.yaml
+astro
+images/
+logs/
+notebooks/
+venv/

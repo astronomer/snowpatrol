@@ -9,7 +9,8 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from statsmodels.tsa.seasonal import seasonal_decompose
-
+from airflow.utils import timezone
+from dateutil.relativedelta import relativedelta
 from include.datasets import (common_calendar_table, feature_metering_table,
                               metrics_metering_table, raw_metering_table,
                               source_metering_table)
@@ -50,7 +51,7 @@ with DAG(
         ),
     },
     schedule="@daily",
-    start_date=datetime(2023, 1, 1),
+    start_date=timezone.utcnow()-relativedelta(years=+1),
     catchup=False,
     max_active_runs=1,
     doc_md=doc_md,
@@ -185,7 +186,7 @@ with DAG(
 
         if missing_date_count > 0:
             raise DataValidationFailed(
-                f"{missing_date_count} missing dates found in table {metrics_metering_table.uri}"
+                f"{missing_date_count} missing dates found in table {raw_metering_table.uri}"
             )
 
     load_metrics_metering_table = SQLExecuteQueryOperator(
