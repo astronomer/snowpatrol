@@ -172,9 +172,6 @@ with DAG(
             index_label="id",
         )
 
-    load_labeller_metering_table()
-    load_labeller_anomaly_table()
-
     @task(doc_md="Generate a report of anomalous activity in Snowflake usage.")
     def generate_report(anomaly_dfs: [pd.DataFrame]) -> str | None:
         anomalies_df = pd.concat(anomaly_dfs, axis=0).reset_index()
@@ -230,7 +227,11 @@ with DAG(
     #     slack_conn_id=slack_conn_id,
     # )
 
+
     anomaly_dfs = predict_metering_anomalies.expand(warehouse=list_warehouses())
+
+    anomaly_dfs >> load_labeller_anomaly_table() >> load_labeller_metering_table()
+
     notification_check = check_notify(anomaly_dfs=anomaly_dfs)
     report = generate_report(anomaly_dfs=anomaly_dfs)
 
