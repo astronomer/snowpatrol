@@ -107,9 +107,53 @@ with DAG(
                     dollars_cost = source.dollars_cost,
                     last_updated_at = source.last_updated_at
             WHEN NOT MATCHED THEN
-                INSERT (query_id, query_text, database_name, schema_name, warehouse_name, warehouse_size, warehouse_type, user_name, role_name, start_date, error_code, execution_status, execution_time_sec, total_elapsed_time_sec, rows_deleted, rows_inserted, rows_produced, rows_unloaded, rows_updated, credits_cost, dollars_cost, last_updated_at)
+                INSERT (
+                    query_id,
+                    query_text,
+                    database_name,
+                    schema_name,
+                    warehouse_name,
+                    warehouse_size,
+                    warehouse_type,
+                    user_name,
+                    role_name,
+                    start_date,
+                    error_code,
+                    execution_status,
+                    execution_time_sec,
+                    total_elapsed_time_sec,
+                    rows_deleted,
+                    rows_inserted,
+                    rows_produced,
+                    rows_unloaded,
+                    rows_updated,
+                    credits_cost,
+                    dollars_cost,
+                    last_updated_at
+                )
                 VALUES (
-                    source.query_id, source.query_text, source.database_name, source.schema_name, source.warehouse_name, source.warehouse_size, source.warehouse_type, source.user_name, source.role_name, source.start_date, source.error_code, source.execution_status, source.execution_time_sec, source.total_elapsed_time_sec, source.rows_deleted, source.rows_inserted, source.rows_produced, source.rows_unloaded, source.rows_updated, source.credits_cost, source.dollars_cost, source.last_updated_at
+                    source.query_id,
+                    source.query_text,
+                    source.database_name,
+                    source.schema_name,
+                    source.warehouse_name,
+                    source.warehouse_size,
+                    source.warehouse_type,
+                    source.user_name,
+                    source.role_name,
+                    source.start_date,
+                    source.error_code,
+                    source.execution_status,
+                    source.execution_time_sec,
+                    source.total_elapsed_time_sec,
+                    source.rows_deleted,
+                    source.rows_inserted,
+                    source.rows_produced,
+                    source.rows_unloaded,
+                    source.rows_updated,
+                    source.credits_cost,
+                    source.dollars_cost,
+                    source.last_updated_at
                 );
         """,
     )
@@ -120,7 +164,7 @@ with DAG(
         outlets=reporting_storage_cost,
         sql=f"""
         CREATE OR REPLACE TABLE {reporting_storage_cost.uri} AS
-        SELECT 
+        SELECT
             usage_date,
             database_id,
             database_name,
