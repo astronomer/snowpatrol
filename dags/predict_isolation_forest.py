@@ -103,7 +103,7 @@ with DAG(
                            RESIDUAL
                     FROM {feature_metering_table.uri}
                     WHERE   WAREHOUSE_NAME = '{warehouse}'
-                    AND     USAGE_DATE BETWEEN DATEADD(DAY, -3, '{data_interval_start}') AND '{data_interval_start}'
+                    AND     USAGE_DATE BETWEEN DATEADD(DAY, -7, '{data_interval_start}') AND '{data_interval_start}'
                     ORDER BY USAGE_DATE ASC;"""
             )
 

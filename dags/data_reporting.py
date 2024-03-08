@@ -79,8 +79,6 @@ with DAG(
             FROM snowflake.account_usage.query_history AS qh
             INNER JOIN warehouse_sizes AS wh
                 ON qh.warehouse_size=wh.warehouse_size
-            WHERE
-                start_time >= CURRENT_DATE - 30
         """)
 
     load_reporting_storage_cost = SQLExecuteQueryOperator(
@@ -95,7 +93,6 @@ with DAG(
             (database_bytes / POWER(1024, 4)) * 23.00 AS database_storage_cost,
             SYSDATE() AS last_updated_at
         FROM snowflake.account_usage.database_storage_usage_history 
-        WHERE usage_date >= CURRENT_DATE - 30
         """
     )
 
