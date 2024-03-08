@@ -24,7 +24,6 @@ jobs:
       uses: astronomer/deploy-action@v0.4
       with:
         deployment-id: ${{ secrets.DEV_ASTRO_DEPLOYMENT_ID }}
-        parse: true
 
   astro-deploy-prod:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/main'
@@ -36,4 +35,3 @@ jobs:
       uses: astronomer/deploy-action@v0.4
       with:
         deployment-id: ${{ secrets.PROD_ASTRO_DEPLOYMENT_ID }}
-        parse: true
