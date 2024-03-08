@@ -7,19 +7,15 @@
 name: Astro Deploy
 
 on:
-  push:
-    branches: [dev, main]
-#on:
-#    pull_request:
-#      branches:
-#        - dev
-#        - main
-#      types: [ closed ]
+    pull_request:
+      branches:
+        - dev
+        - main
+      types: [ closed ]
 
 jobs:
   astro-deploy-dev:
-    if: github.ref == 'refs/heads/dev'
-#    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     env:
       ASTRO_API_TOKEN: ${{ secrets.DEV_ASTRO_API_TOKEN }}
@@ -30,8 +26,7 @@ jobs:
         deployment-id: ${{ secrets.DEV_ASTRO_DEPLOYMENT_ID }}
 
   astro-deploy-prod:
-    if: github.ref == 'refs/heads/main'
-#    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       ASTRO_API_TOKEN: ${{ secrets.PROD_ASTRO_API_TOKEN }}
