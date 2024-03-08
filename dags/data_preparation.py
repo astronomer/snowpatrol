@@ -8,12 +8,17 @@ from airflow.decorators import task
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from statsmodels.tsa.seasonal import seasonal_decompose
 from airflow.utils import timezone
 from dateutil.relativedelta import relativedelta
-from include.datasets import (common_calendar_table, feature_metering_table,
-                              metrics_metering_table, raw_metering_table,
-                              source_metering_table)
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+from include.datasets import (
+    common_calendar_table,
+    feature_metering_table,
+    metrics_metering_table,
+    raw_metering_table,
+    source_metering_table,
+)
 from include.exceptions import DataValidationFailed
 
 # Snowflake Configuration
@@ -27,7 +32,7 @@ slack_channel = "#snowstorm-alerts"
 doc_md = f"""
         # Data Preparation
         This DAG performs the data preparation for Snowflake's Metering view. We use it
-        to populate feature tables for ML DAGs. Corrections can be made to this view 
+        to populate feature tables for ML DAGs. Corrections can be made to this view
         up to 24 hours later. Only the last 365 days are kept. We perform a MERGE operation
         to ensure new data is inserted and past history is updated if changes happen for past dates.
 
@@ -51,7 +56,7 @@ with DAG(
         ),
     },
     schedule="@daily",
-    start_date=timezone.utcnow()-relativedelta(years=+1),
+    start_date=timezone.utcnow() - relativedelta(years=+1),
     catchup=False,
     max_active_runs=1,
     doc_md=doc_md,
@@ -161,9 +166,9 @@ with DAG(
     )
 
     @task(
-        doc_md="""We expect to have metering data for all dates between dag_start_date 
-                  and the current execution. This task ensures the raw table has been 
-                  loaded for all past dates. Fail if any dates are missing so we 
+        doc_md="""We expect to have metering data for all dates between dag_start_date
+                  and the current execution. This task ensures the raw table has been
+                  loaded for all past dates. Fail if any dates are missing so we
                   can manually backfill the missing dates."""
     )
     def validate_raw_metering_table(dag=None, data_interval_start=None):
@@ -208,7 +213,7 @@ with DAG(
                 FROM {raw_metering_table.uri}
                 WHERE WAREHOUSE_NAME IS NOT NULL
                 ORDER BY WAREHOUSE_NAME
-            ), 
+            ),
             /* Create a cross product of all warehouses and all dates */
             cross_product AS (
                 SELECT  WAREHOUSE_NAME,
@@ -219,7 +224,7 @@ with DAG(
                     FROM {common_calendar_table.uri}
                     WHERE USAGE_DATE <= '{{{{ ds }}}}'
                 ) AS calendar
-            ), 
+            ),
             /* Join the metering data to the cross product to have a complete matrix */
             metering AS (
                 SELECT cross_product.WAREHOUSE_NAME,
@@ -242,33 +247,33 @@ with DAG(
                     CREDITS_USED_COMPUTE,
                     CREDITS_USED_CLOUD_SERVICES,
                     AVG(CREDITS_USED) OVER (
-                        PARTITION BY WAREHOUSE_NAME 
+                        PARTITION BY WAREHOUSE_NAME
                         ORDER BY USAGE_DATE
                         ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
                     ) AS CREDITS_USED_SMA30,
                     AVG(CREDITS_USED_COMPUTE) OVER (
-                        PARTITION BY WAREHOUSE_NAME 
-                        ORDER BY USAGE_DATE 
+                        PARTITION BY WAREHOUSE_NAME
+                        ORDER BY USAGE_DATE
                         ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
                     ) AS CREDITS_USED_COMPUTE_SMA30,
                     AVG(CREDITS_USED_CLOUD_SERVICES) OVER (
-                        PARTITION BY WAREHOUSE_NAME 
-                        ORDER BY USAGE_DATE 
+                        PARTITION BY WAREHOUSE_NAME
+                        ORDER BY USAGE_DATE
                         ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
                     ) AS CREDITS_USED_CLOUD_SERVICES_SMA30,
                     STDDEV(CREDITS_USED) OVER (
-                        PARTITION BY WAREHOUSE_NAME 
-                        ORDER BY USAGE_DATE 
+                        PARTITION BY WAREHOUSE_NAME
+                        ORDER BY USAGE_DATE
                         ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
                     ) AS CREDITS_USED_STD30,
                     STDDEV(CREDITS_USED_COMPUTE) OVER (
-                        PARTITION BY WAREHOUSE_NAME 
-                        ORDER BY USAGE_DATE 
+                        PARTITION BY WAREHOUSE_NAME
+                        ORDER BY USAGE_DATE
                         ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
                     ) AS CREDITS_USED_COMPUTE_STD30,
                     STDDEV(CREDITS_USED_CLOUD_SERVICES) OVER (
-                        PARTITION BY WAREHOUSE_NAME 
-                        ORDER BY USAGE_DATE 
+                        PARTITION BY WAREHOUSE_NAME
+                        ORDER BY USAGE_DATE
                         ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
                     ) AS CREDITS_USED_CLOUD_SERVICES_STD30
             FROM metering

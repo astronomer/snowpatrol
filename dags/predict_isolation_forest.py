@@ -10,13 +10,19 @@ from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.slack.notifications.slack import send_slack_notification
+
 # from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
-from include.datasets import (feature_metering_table, isolation_forest_model,
-                              labeller_anomaly_table, labeller_metering_table,
-                              metrics_metering_table,
-                              model_output_anomalies_table, raw_metering_table)
+from include.datasets import (
+    feature_metering_table,
+    isolation_forest_model,
+    labeller_anomaly_table,
+    labeller_metering_table,
+    metrics_metering_table,
+    model_output_anomalies_table,
+    raw_metering_table,
+)
 
 # Weights and Biases Configuration
 wandb_project = os.getenv("WANDB_PROJECT")
@@ -95,11 +101,11 @@ with DAG(
                 model = pickle.load(mf)
 
             metering_df = snowflake_hook.get_pandas_df(
-                f"""SELECT WAREHOUSE_NAME, 
-                           USAGE_DATE, 
-                           CREDITS_USED, 
-                           TREND, 
-                           SEASONAL, 
+                f"""SELECT WAREHOUSE_NAME,
+                           USAGE_DATE,
+                           CREDITS_USED,
+                           TREND,
+                           SEASONAL,
                            RESIDUAL
                     FROM {feature_metering_table.uri}
                     WHERE   WAREHOUSE_NAME = '{warehouse}'
@@ -226,7 +232,6 @@ with DAG(
     #     text=report,
     #     slack_conn_id=slack_conn_id,
     # )
-
 
     anomaly_dfs = predict_metering_anomalies.expand(warehouse=list_warehouses())
 

@@ -1,7 +1,6 @@
 # Description: This file contains the dataset definitions for all the Dags in the project.
 from airflow import Dataset
 
-
 source_metering_table = Dataset(
     uri="SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY"
 )
@@ -18,7 +17,9 @@ feature_metering_table = Dataset(
 
 isolation_forest_model = Dataset(uri="isolation_forest_model")
 
-model_output_anomalies_table = Dataset(uri="SANDBOX.OLIVIERDANEAU.MODEL_OUTPUT_ANOMALIES")
+model_output_anomalies_table = Dataset(
+    uri="SANDBOX.OLIVIERDANEAU.MODEL_OUTPUT_ANOMALIES"
+)
 
 labeller_metering_table = Dataset(uri="metering")
 labeller_anomaly_table = Dataset(uri="anomaly")

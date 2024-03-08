@@ -79,7 +79,8 @@ with DAG(
             FROM snowflake.account_usage.query_history AS qh
             INNER JOIN warehouse_sizes AS wh
                 ON qh.warehouse_size=wh.warehouse_size
-        """)
+        """,
+    )
 
     load_reporting_storage_cost = SQLExecuteQueryOperator(
         task_id="load_reporting_storage_cost",
@@ -87,13 +88,13 @@ with DAG(
         outlets=reporting_storage_cost,
         sql=f"""
        CREATE OR REPLACE TABLE {reporting_storage_cost.uri} AS
-        SELECT database_name, 
-            database_id, 
+        SELECT database_name,
+            database_id,
             AVERAGE_DATABASE_BYTES AS database_bytes,
             (database_bytes / POWER(1024, 4)) * 23.00 AS database_storage_cost,
             SYSDATE() AS last_updated_at
-        FROM snowflake.account_usage.database_storage_usage_history 
-        """
+        FROM snowflake.account_usage.database_storage_usage_history
+        """,
     )
 
     load_reporting_query_duration

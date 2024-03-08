@@ -49,31 +49,32 @@ doc_md = """
     """
 
 with DAG(
-        dag_id="train_isolation_forest",
-        default_args={
-            "retries": 3,
-            "retry_delay": timedelta(minutes=5),
-            "on_failure_callback": send_slack_notification(
-                slack_conn_id="slack_alert",
-                text="The task {{ ti.task_id }} failed. Check the logs.",  # TODO: Add link to logs
-                channel=slack_channel,
-            ),
-        },
-        schedule=[feature_metering_table],
-        start_date=datetime(2023, 1, 1),
-        is_paused_upon_creation=False,
-        catchup=False,
-        doc_md=doc_md,
-        params={
-            "force_retrain": Param(
-                title="Force retraining",
-                type="boolean",
-                description="""By default, only the drifted models will be retrained.
+    dag_id="train_isolation_forest",
+    default_args={
+        "retries": 3,
+        "retry_delay": timedelta(minutes=5),
+        "on_failure_callback": send_slack_notification(
+            slack_conn_id="slack_alert",
+            text="The task {{ ti.task_id }} failed. Check the logs.",  # TODO: Add link to logs
+            channel=slack_channel,
+        ),
+    },
+    schedule=[feature_metering_table],
+    start_date=datetime(2023, 1, 1),
+    is_paused_upon_creation=False,
+    catchup=False,
+    doc_md=doc_md,
+    params={
+        "force_retrain": Param(
+            title="Force retraining",
+            type="boolean",
+            description="""By default, only the drifted models will be retrained.
                            Setting this to True will force retraining of all models.""",
-                default=True,
-            ),
-        },
+            default=True,
+        ),
+    },
 ):
+
     @task.venv(
         "evidently_venv",
         doc_md="""Detect drift in the metering feature table for all warehouses.
@@ -83,10 +84,10 @@ with DAG(
                   to manage the external python virtual environment.""",
     )
     def detect_drift_metering(
-            force_retrain: bool,
-            snowflake_conn_config: dict,
-            feature_metering_table: str,
-            data_interval_start=None,
+        force_retrain: bool,
+        snowflake_conn_config: dict,
+        feature_metering_table: str,
+        data_interval_start=None,
     ):
         import logging
 
@@ -159,7 +160,6 @@ with DAG(
         else:
             return drifted_warehouses
 
-
     @task(
         outlets=[isolation_forest_model],
         doc_md="Train an isolation forest model for a given warehouse.",
@@ -186,8 +186,8 @@ with DAG(
             ),
         ):
             df = snowflake_hook.get_pandas_df(
-                sql=f"""SELECT USAGE_DATE, 
-                               CREDITS_USED, 
+                sql=f"""SELECT USAGE_DATE,
+                               CREDITS_USED,
                                RESIDUAL
                       FROM {feature_metering_table.uri}
                       WHERE WAREHOUSE_NAME = '{warehouse}'
@@ -210,14 +210,14 @@ with DAG(
             std_scores = df["SCORES"].std()
 
             anomaly_threshold = mean_scores - (
-                    model_config["threshold_cutoff"] * std_scores
+                model_config["threshold_cutoff"] * std_scores
             )
             df["THRESHOLD"] = anomaly_threshold
 
             anomalies_df = df.loc[
                 (df["SCORES"] <= df["THRESHOLD"])
                 & (df["CREDITS_USED"] > df["CREDITS_USED"].mean())
-                ]
+            ]
             logging.info(anomalies_df)
 
             # save the model artifact as a pickle file
@@ -264,7 +264,6 @@ with DAG(
                 {"anomalies": wandb.Image(f"{model_dir}/{warehouse}_anomalies.png")}
             )
         return model_name
-
 
     drifted_warehouses = detect_drift_metering(
         force_retrain="{{ params.force_retrain }}",
