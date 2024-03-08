@@ -3,7 +3,6 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.dates import days_ago
 
 snowflake_conn_id = "snowflake_admin"
-
 postgres_conn_id = "postgres_admin"
 
 snowflake_doc_md = """
