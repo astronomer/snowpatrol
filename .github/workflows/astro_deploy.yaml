@@ -21,7 +21,7 @@ jobs:
       ASTRO_API_TOKEN: ${{ secrets.DEV_ASTRO_API_TOKEN }}
     steps:
     - name: Deploy to Astro Dev
-      uses: astronomer/deploy-action@v0.3
+      uses: astronomer/deploy-action@v0.4
       with:
         deployment-id: ${{ secrets.DEV_ASTRO_DEPLOYMENT_ID }}
         parse: true
@@ -33,7 +33,7 @@ jobs:
       ASTRO_API_TOKEN: ${{ secrets.PROD_ASTRO_API_TOKEN }}
     steps:
     - name: Deploy to Astro Prod
-      uses: astronomer/deploy-action@v0.3
+      uses: astronomer/deploy-action@v0.4
       with:
         deployment-id: ${{ secrets.PROD_ASTRO_DEPLOYMENT_ID }}
         parse: true
