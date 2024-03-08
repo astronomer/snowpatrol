@@ -15,23 +15,24 @@ on:
 
 jobs:
   astro-deploy-dev:
-    if: github.event.pull_request.merged == true && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
     env:
       ASTRO_API_TOKEN: ${{ secrets.DEV_ASTRO_API_TOKEN }}
-    runs-on: ubuntu-latest
     steps:
-    - name: Deploy to Astro
+    - name: Deploy to Astro Dev
       uses: astronomer/deploy-action@v0.3
       with:
         deployment-id: ${{ secrets.DEV_ASTRO_DEPLOYMENT_ID }}
         parse: true
+
   astro-deploy-prod:
-    if: github.event.pull_request.merged == true && github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     env:
       ASTRO_API_TOKEN: ${{ secrets.PROD_ASTRO_API_TOKEN }}
-    runs-on: ubuntu-latest
     steps:
-    - name: Deploy to Astro
+    - name: Deploy to Astro Prod
       uses: astronomer/deploy-action@v0.3
       with:
         deployment-id: ${{ secrets.PROD_ASTRO_DEPLOYMENT_ID }}
