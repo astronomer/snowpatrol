@@ -2,7 +2,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Date, DateTime, Float, Integer, Text
 from sqlalchemy.orm import declarative_base
 
-
 Base = declarative_base()
 
 

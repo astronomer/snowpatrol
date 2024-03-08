@@ -43,7 +43,7 @@ doc_md = """
     each warehouse using Dynamic Task Mapping if data drift is detected.
     Setting the force_retrain parameter to True will force retraining of all models.
     We force retraining of models if we don't have enough data to detect drift.
-    
+
      #### Tables
         - {feature_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
     """
@@ -186,8 +186,8 @@ with DAG(
             ),
         ):
             df = snowflake_hook.get_pandas_df(
-                sql=f"""SELECT USAGE_DATE, 
-                               CREDITS_USED, 
+                sql=f"""SELECT USAGE_DATE,
+                               CREDITS_USED,
                                RESIDUAL
                       FROM {feature_metering_table.uri}
                       WHERE WAREHOUSE_NAME = '{warehouse}'

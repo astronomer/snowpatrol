@@ -5,13 +5,13 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.security import permissions
 from airflow.www.auth import has_access
-from flask import Blueprint, request
+from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView
 from flask_appbuilder import expose
-from plugins.snowpatrol.models import Anomaly, Metering
 from sqlalchemy.orm import sessionmaker as SQLAlchemySessionMaker
 
 from plugins.snowpatrol.charts import get_anomaly_chart
+from plugins.snowpatrol.models import Anomaly, Metering
 
 # Postgres Configuration
 postgres_conn_id = "postgres_admin"

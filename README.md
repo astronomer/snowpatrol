@@ -86,8 +86,8 @@ This project aims to identify anomalous usage activity in order to allow managem
 
 Snowflake users incur costs for compute, storage, marketplace and various other services. Of these, compute is the most
 significant. Data exploration and experimentation was performed (
-see [notebook](notebooks/snowpatrol.ipynb)) to evaluate the ability to identify anomalies for all warehouses. 
-While storage usage can increase quickly the relative cost is not significant (<1% of total billing). 
+see [notebook](notebooks/snowpatrol.ipynb)) to evaluate the ability to identify anomalies for all warehouses.
+While storage usage can increase quickly the relative cost is not significant (<1% of total billing).
 Production models, therefore, will monitor compute usage specifically.
 
 <p align="center">
@@ -116,12 +116,12 @@ use-case.
 
 Snowflake runs nightly jobs to capture usage statistics for billing (see Dataset section below.). However, the usage
 data is only available to administrators by default. Additionally there are different levels of aggregation which happen
-at the "organization" and "account" levels. The data engineering DAG extracts organization-level usage 
+at the "organization" and "account" levels. The data engineering DAG extracts organization-level usage
 to the project's schema and database for access by non-admin users.
 
 ##### Data Validation
 
-Data validation is performed after the raw data is sourced from Snowflake views. 
+Data validation is performed after the raw data is sourced from Snowflake views.
 This is to ensure that no data is missing before we perform feature engineering and model training.
 In the future, Soda Core and Great Expectations could be leveraged for further data validation.
 
@@ -143,10 +143,10 @@ tasks will use the `latest` tag.
 
 ##### Data Drift detection
 
-Prior to training a new model, the training DAG will check for data drift using KS. 
+Prior to training a new model, the training DAG will check for data drift using KS.
 If the usage data for a particular warehouse as drifted compared to the historical data, the model will be flagged to be retrained.
 
-It is possible to bypass this check by setting the `force_retrain` parameter to `True` in the DAG. 
+It is possible to bypass this check by setting the `force_retrain` parameter to `True` in the DAG.
 This forces the model to be retrained regardless of the drift detection results.
 
 #### Predictions and Alerting
@@ -241,7 +241,7 @@ To use this template you need the following:
     cd snowpatrol
     ```
 
-   3. Create a file called `.env` with the following connection strings and environment variables. 
+   3. Create a file called `.env` with the following connection strings and environment variables.
       To make this easier, we have included a .env.example file that you can rename to .env.
 
        - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowpatrol` entity and `snowpatrol`

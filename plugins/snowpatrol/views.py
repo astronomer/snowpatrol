@@ -1,7 +1,8 @@
 # from labeller.models import db
 # from labeller.forms import CreateAnomalyForm
 import plotly.express as px
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template
+
 from plugins.snowpatrol.models import Anomaly, Metering
 
 bp = Blueprint("main", __name__)

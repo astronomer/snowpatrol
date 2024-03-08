@@ -1,6 +1,6 @@
 # Set the following GitHub Secrets before running the GitHub Actions Workflow for the first time:
-# - STAGING_ASTRO_DEPLOYMENT_ID
-# - STAGING_ASTRO_API_TOKEN
+# - DEV_ASTRO_DEPLOYMENT_ID
+# - DEV_ASTRO_API_TOKEN
 # - PROD_ASTRO_DEPLOYMENT_ID
 # - PROD_ASTRO_API_TOKEN
 
