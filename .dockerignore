@@ -1,0 +1,11 @@
+.env
+.git
+.venv
+airflow_settings.yaml
+airflow.cfg
+airflow.db
+astro
+images/
+logs/
+notebooks/
+venv/

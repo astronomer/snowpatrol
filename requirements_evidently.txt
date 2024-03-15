@@ -1,0 +1,5 @@
+apache-airflow==2.8.2
+evidently
+lazy_object_proxy
+pendulum
+snowflake-connector-python[pandas]
