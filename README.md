@@ -7,7 +7,7 @@
 SnowPatrol is an open-source application for managing cloud costs. 
 SnowPatrol offers a reference implementation for MLOps on Airflow to manage the training, testing, deployment, and monitoring of a predictive model of Snowflake spend.
 
-![anomalies.png](docs/images/anomalies.png)
+![anomalies.png](docs/images/anomalies_all_wh.png)
 
 ## Project Structure
 
@@ -27,7 +27,7 @@ While storage usage can increase quickly the relative cost is not significant (<
 Production models, therefore, will monitor compute usage specifically.
 
 <p align="center">
-  <img src="docs/images/decompose.png" width="400" align="left"/>
+  <img src="docs/images/transforming_decompose.png" width="400" align="left"/>
 </p>
 
 Without specific labeled data we will use an unsupervised approach with an [Isolation Forest](https://en.wikipedia.org/wiki/Isolation_forest) model. Separate models
@@ -76,10 +76,6 @@ This forces the model to be retrained regardless of the drift detection results.
 
 Predictions are made in batch with dynamic tasks for each model instance. Identified anomalies are grouped and a report
 is generated in Markdown format. Alerts are sent as Slack messages for notification.
-<p>
-  <img src="docs/images/alert.png" width="500"/>
-</p>
-<br clear="center"/>
 
 
 ### Data
