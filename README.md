@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/logo.png" width="300" align="right"/>
+  <img src="docs/images/logo.png" width="300" align="right"/>
 </p>
 
 # Snowpatrol
@@ -8,7 +8,7 @@ Snowpatrol is an application for anomaly detection and alerting of Snowflake usa
 Additionally, this application provides a reference implementation and template for Machine Learning Operations (MLOps)
 with Apache Airflow.
 
-![anomalies.png](images%2Fanomalies.png)
+![anomalies.png](docs/images/anomalies.png)
 
 ## MLOps Themes
 
@@ -25,7 +25,7 @@ As such we assume that Data Scientists have used their tool of choice for data e
 experimentation. The starting point may be a Jupyter notebook or other code provided by a Data Scientist and
 checked into a code repository. You will find the starter notebook for this project in the `notebooks` folder.
 
-<p><img src="images/datasets.png" width="400" align="right"/></p>
+<p><img src="docs/images/datasets.png" width="400" align="right"/></p>
 
 ### Use [Data aware scheduling](https://docs.astronomer.io/learn/airflow-datasets) to separate workflows based on various scheduling requirements.
 
@@ -91,7 +91,7 @@ While storage usage can increase quickly the relative cost is not significant (<
 Production models, therefore, will monitor compute usage specifically.
 
 <p align="center">
-  <img src="images/decompose.png" width="400" align="left"/>
+  <img src="docs/images/decompose.png" width="400" align="left"/>
 </p>
 
 Without specific labeled data we will use an unsupervised approach with an [Isolation Forest]() model. Separate models
@@ -106,7 +106,7 @@ This project separates all the steps of the ML pipeline into 3 different Dags.
 `Train Isolation Forest` handles drift detection and model training
 `Predict Isolation Forest` handles predictions, monitoring and alerting.
 
-<p align="center"><img src="images/dags.png" width="800"/></p>
+<p align="center"><img src="docs/images/dags.png" width="800"/></p>
 
 Note: For this use-case the DAGs are very small with only a couple of tasks each. As a reference implementation the
 use-case was selected because of its simplicity and to highlight the framework without distractions of the specific
@@ -154,7 +154,7 @@ This forces the model to be retrained regardless of the drift detection results.
 Predictions are made in batch with dynamic tasks for each model instance. Identified anomalies are grouped and a report
 is generated in Markdown format. Alerts are sent as Slack messages for notification.
 <p>
-  <img src="images/alert.png" width="500"/>
+  <img src="docs/images/alert.png" width="500"/>
 </p>
 <br clear="center"/>
 
@@ -175,7 +175,7 @@ is updated nightly with metering data for all warehouses in the main account of 
 ### Experiment Tracking
 
 <p>
-  <img src="images/model_details.png" width="600" align="right"/>
+  <img src="docs/images/model_details.png" width="600" align="right"/>
 </p>
 
 This project uses [Weights and Biases](https://wandb.ai/snowpatrol/snowpatrol) for experiment and model tracking.
@@ -193,7 +193,7 @@ will cross-link WandB runs with DAG runs.
 ### Model Registry
 
 <p>
-  <img src="images/model_registry.png" width="400" align="right"/>
+  <img src="docs/images/model_registry.png" width="400" align="right"/>
 </p>
 
 Successful runs of the training DAG tag models as "latest" in the [Model Registry](https://wandb.ai/registry/model).
