@@ -4,8 +4,11 @@
 
 # SnowPatrol
 
-SnowPatrol is an open-source application for managing cloud costs. 
+SnowPatrol is an open-source application for managing cloud costs.
 SnowPatrol offers a reference implementation for MLOps on Airflow to manage the training, testing, deployment, and monitoring of a predictive model of Snowflake spend.
+
+At Astronomer, we firmly believe in the power of open source and sharing knowledge.
+We are excited to share this MLOps reference implementation with the community and hope it will be useful to others.
 
 ![anomalies.png](docs/images/anomalies_all_wh.png)
 
@@ -47,7 +50,7 @@ This project separates all the steps of the ML pipeline into 3 different Dags.
 
 #### Data Preparation
 
-Snowflake performs nightly updates to the metering statistics and makes the data available in the `WAREHOUSE_METERING_HISTORY` table. 
+Snowflake performs nightly updates to the metering statistics and makes the data available in the `WAREHOUSE_METERING_HISTORY` table.
 While we could use the tables directly, the data is truncated daily and only the last 365 days are kept.
 The data preparation DAG extracts organization-level metering data, cleans it up and accumulates it so we have a full history. To keep things simple, data validation and feature engineering are done as part of the same DAG.
 
@@ -63,7 +66,7 @@ on each warehouses at the organization level. The feature engineering task is pa
 Multiple models and model instances are trained and stored in the model catalog with versioning. Downstream inference
 tasks will use the `latest` tag.
 
-Isolation Forest model training is triggered using data-aware scheduling and will start as soon as data preparation datasets are available. 
+Isolation Forest model training is triggered using data-aware scheduling and will start as soon as data preparation datasets are available.
 The DAG uses dynamic tasks to train models for each warehouse.
 
 Prior to training a new model, the training DAG will check for data drift using KS.
