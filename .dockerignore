@@ -1,9 +1,9 @@
 .env
 .git
 .venv
+airflow_settings.yaml
 airflow.cfg
 airflow.db
-airflow_settings.yaml
 astro
 images/
 logs/

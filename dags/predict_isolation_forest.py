@@ -7,11 +7,10 @@ import pandas as pd
 import wandb
 from airflow import DAG
 from airflow.decorators import task
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.slack.notifications.slack import send_slack_notification
 
-# from airflow.providers.slack.operators.slack import SlackAPIPostOperator
+from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 from include.datasets import (
@@ -225,13 +224,6 @@ with DAG(
         if len(pd.concat(anomaly_dfs, axis=0)) > 0:
             return ["send_alert"]
 
-    send_report = EmptyOperator(task_id="send_alert")
-    # send_alert = SlackAPIPostOperator(
-    #     task_id="send_alert",
-    #     channel=slack_channel,
-    #     text=report,
-    #     slack_conn_id=slack_conn_id,
-    # )
 
     anomaly_dfs = predict_metering_anomalies.expand(warehouse=list_warehouses())
 
@@ -239,5 +231,12 @@ with DAG(
 
     notification_check = check_notify(anomaly_dfs=anomaly_dfs)
     report = generate_report(anomaly_dfs=anomaly_dfs)
+
+    send_report = SlackAPIPostOperator(
+        task_id="send_alert",
+        channel=slack_channel,
+        text=report,
+        slack_conn_id=slack_conn_id,
+    )
 
     notification_check >> send_report

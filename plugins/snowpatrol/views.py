@@ -1,5 +1,3 @@
-# from labeller.models import db
-# from labeller.forms import CreateAnomalyForm
 import plotly.express as px
 from flask import Blueprint, render_template
 
@@ -45,51 +43,6 @@ def index():
 def get_anomaly(id: int):
     data = Metering.query.get(id)
     return render_template("anomalies/table_row.html", row=data)
-
-
-# @bp.route("/anomaly", methods=["POST"])
-# def create_anomaly():
-#     form = CreateAnomalyForm()
-#
-#     if form.validate_on_submit():
-#         pass
-#
-#     return render_template('anomalies/form_submit.html', form=form)
-#
-#     warehouse_name = request.form["warehouse_name"]
-#     usage_date = request.form["usage_date"]
-#     is_valid = request.form["is_valid"]
-#     comment = request.form["comment"]
-#     anomaly = Anomaly(
-#         warehouse_name=warehouse_name,
-#         usage_date=usage_date,
-#         credits_used=credits_used,
-#         trend=trend,
-#         seasonal=seasonal,
-#         residual=residual,
-#         score=score,
-#         is_valid=is_valid,
-#         comment=comment,
-#     )
-#     db.session.add(anomaly)
-#     db.session.commit()
-#
-#     return render_template("anomalies/table_row.html", row=anomaly)
-
-
-# @bp.route("/anomaly/<int:id>", methods=["PUT"])
-# def update_anomaly(id: int):
-#     data = WarehouseMetering.query.get(id)
-#     data.is_valid = request.values.get("is_valid")
-#     data.comment = request.values.get("comment")
-#     db.session.commit()
-#     return render_template("anomalies/table_row.html", row=data)
-
-#
-# @bp.route("/edit-form/<int:id>", methods=["GET"])
-# def get_edit_form(id: int):
-#     data = Anomaly.query.get(id)
-#     return render_template("anomalies/table_row_edit.html", row=data)
 
 
 def get_anomaly_chart(metering, anomalies):
