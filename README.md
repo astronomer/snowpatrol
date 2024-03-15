@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo.png" width="300" align="right"/>
+  <img src="docs/images/logo_rm.png" width="300" align="right"/>
 </p>
 
 # SnowPatrol
