@@ -21,9 +21,7 @@ feature_metering_table = Dataset(
 
 isolation_forest_model = Dataset(uri="isolation_forest_model")
 
-model_output_anomalies_table = Dataset(
-    uri=f"{db}.{schema}.MODEL_OUTPUT_ANOMALIES"
-)
+model_output_anomalies_table = Dataset(uri=f"{db}.{schema}.MODEL_OUTPUT_ANOMALIES")
 
 labeller_metering_table = Dataset(uri="metering")
 labeller_anomaly_table = Dataset(uri="anomaly")

@@ -160,7 +160,7 @@ cython_debug/
 #.idea/
 
 # macOS specific ignore
-.DS_Store 
+.DS_Store
 
 # Astro Specific
 airflow_settings.yaml

@@ -224,7 +224,6 @@ with DAG(
         if len(pd.concat(anomaly_dfs, axis=0)) > 0:
             return ["send_alert"]
 
-
     anomaly_dfs = predict_metering_anomalies.expand(warehouse=list_warehouses())
 
     anomaly_dfs >> load_labeller_anomaly_table() >> load_labeller_metering_table()
