@@ -18,6 +18,7 @@ from include.datasets import (
     metrics_metering_table,
     raw_metering_table,
     source_metering_table,
+    account_number,
 )
 from include.exceptions import DataValidationFailed
 
@@ -60,9 +61,9 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     doc_md=doc_md,
+    template_searchpath="/usr/local/airflow/include",
 ):
     load_raw_metering_table = SQLExecuteQueryOperator(
-        # TODO: This should be an incremental load with the day's data only
         doc_md="""
             Task to persist the data from the view
             SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY.
@@ -72,97 +73,12 @@ with DAG(
         task_id="load_metering_table",
         conn_id=snowflake_conn_id,
         outlets=raw_metering_table,
-        sql=f"""
-            MERGE INTO {raw_metering_table.uri} AS target
-            USING (
-                SELECT ACCOUNT_NAME,
-                       SERVICE_TYPE,
-                       TO_DATE(END_TIME) AS USAGE_DATE,
-                       WAREHOUSE_NAME,
-                       SUM(CREDITS_USED) AS CREDITS_USED,
-                       SUM(CREDITS_USED_COMPUTE) AS CREDITS_USED_COMPUTE,
-                       SUM(CREDITS_USED_CLOUD_SERVICES) AS CREDITS_USED_CLOUD_SERVICES,
-                       SYSDATE() AS UPDATED_AT
-                FROM {source_metering_table.uri}
-                WHERE   WAREHOUSE_ID > 0  -- Skip pseudo-VWs such as "CLOUD_SERVICES_ONLY"
-                AND     USAGE_DATE BETWEEN DATEADD(DAY, -2, '{{{{ ds }}}}') AND '{{{{ ds }}}}'
-                AND     ACCOUNT_NAME = 'GP21411' -- Astronomer's main Snowflake account
-                GROUP BY ACCOUNT_NAME,
-                         SERVICE_TYPE,
-                         USAGE_DATE,
-                         WAREHOUSE_NAME
-            ) AS source
-            ON  source.ACCOUNT_NAME     = target.ACCOUNT_NAME
-            AND source.SERVICE_TYPE     = target.SERVICE_TYPE
-            AND source.USAGE_DATE       = target.USAGE_DATE
-            AND source.WAREHOUSE_NAME   = target.WAREHOUSE_NAME
-            WHEN MATCHED THEN
-                UPDATE SET
-                    target.ACCOUNT_NAME                 = source.ACCOUNT_NAME,
-                    target.SERVICE_TYPE                 = source.SERVICE_TYPE,
-                    target.USAGE_DATE                   = source.USAGE_DATE,
-                    target.WAREHOUSE_NAME               = source.WAREHOUSE_NAME,
-                    target.CREDITS_USED                 = source.CREDITS_USED,
-                    target.CREDITS_USED_COMPUTE         = source.CREDITS_USED_COMPUTE,
-                    target.CREDITS_USED_CLOUD_SERVICES  = source.CREDITS_USED_CLOUD_SERVICES,
-                    target.UPDATED_AT                   = source.UPDATED_AT
-            WHEN NOT MATCHED THEN
-                INSERT (
-                    ACCOUNT_NAME,
-                    SERVICE_TYPE,
-                    USAGE_DATE,
-                    WAREHOUSE_NAME,
-                    CREDITS_USED,
-                    CREDITS_USED_COMPUTE,
-                    CREDITS_USED_CLOUD_SERVICES,
-                    UPDATED_AT
-                ) VALUES (
-                    source.ACCOUNT_NAME,
-                    source.SERVICE_TYPE,
-                    source.USAGE_DATE,
-                    source.WAREHOUSE_NAME,
-                    source.CREDITS_USED,
-                    source.CREDITS_USED_COMPUTE,
-                    source.CREDITS_USED_CLOUD_SERVICES,
-                    source.UPDATED_AT
-                );
-            """,
-    )
-
-    load_common_calendar_table = SQLExecuteQueryOperator(
-        doc_md="""
-                Task to create a calendar table with 5 years starting on dag_start_date
-                """,
-        task_id="load_calendar_table",
-        conn_id=snowflake_conn_id,
-        outlets=common_calendar_table,
-        sql=f"""
-                CREATE OR REPLACE TABLE {common_calendar_table.uri} (
-                    USAGE_DATE      DATE        NOT NULL,
-                    YEAR            SMALLINT    NOT NULL,
-                    MONTH           SMALLINT    NOT NULL,
-                    MONTH_NAME      CHAR(3)     NOT NULL,
-                    DAY_OF_MON      SMALLINT    NOT NULL,
-                    DAY_OF_WEEK     VARCHAR(9)  NOT NULL,
-                    WEEK_OF_YEAR    SMALLINT    NOT NULL,
-                    DAY_OF_YEAR     SMALLINT    NOT NULL
-                )
-                AS
-                WITH dates AS (
-                    SELECT '{{{{ dag.start_date }}}}'::DATE -1 +
-                      ROW_NUMBER() OVER(ORDER BY 0) AS USAGE_DATE
-                    FROM TABLE(GENERATOR(ROWCOUNT => 1826)) -- 5 years
-                )
-                SELECT  USAGE_DATE,
-                        YEAR(USAGE_DATE),
-                        MONTH(USAGE_DATE),
-                        MONTHNAME(USAGE_DATE),
-                        DAY(USAGE_DATE),
-                        DAYOFWEEK(USAGE_DATE),
-                        WEEKOFYEAR(USAGE_DATE),
-                        DAYOFYEAR(USAGE_DATE)
-                FROM dates;
-            """,
+        sql="sql/data_preparation/load_raw_metering_table.sql",
+        params={
+            "source_metering_table": source_metering_table.uri,
+            "raw_metering_table": raw_metering_table.uri,
+            "account_number": account_number,
+        },
     )
 
     @task(
@@ -205,81 +121,12 @@ with DAG(
         task_id="load_metrics_metering_table",
         conn_id=snowflake_conn_id,
         outlets=metrics_metering_table,
-        sql=f"""
-            CREATE OR REPLACE TABLE {metrics_metering_table.uri} AS
-            /* Create a virtual table of all warehouses */
-            WITH virtual_warehouses AS (
-                SELECT DISTINCT WAREHOUSE_NAME
-                FROM {raw_metering_table.uri}
-                WHERE WAREHOUSE_NAME IS NOT NULL
-                ORDER BY WAREHOUSE_NAME
-            ),
-            /* Create a cross product of all warehouses and all dates */
-            cross_product AS (
-                SELECT  WAREHOUSE_NAME,
-                        USAGE_DATE
-                FROM virtual_warehouses
-                CROSS JOIN (
-                    SELECT USAGE_DATE
-                    FROM {common_calendar_table.uri}
-                    WHERE USAGE_DATE <= '{{{{ ds }}}}'
-                ) AS calendar
-            ),
-            /* Join the metering data to the cross product to have a complete matrix */
-            metering AS (
-                SELECT cross_product.WAREHOUSE_NAME,
-                       cross_product.USAGE_DATE,
-                       COALESCE(SUM(metering.CREDITS_USED), 0) AS CREDITS_USED,
-                       COALESCE(SUM(metering.CREDITS_USED_COMPUTE), 0) AS CREDITS_USED_COMPUTE,
-                       COALESCE(SUM(metering.CREDITS_USED_CLOUD_SERVICES), 0) AS CREDITS_USED_CLOUD_SERVICES
-                FROM cross_product
-                LEFT JOIN {raw_metering_table.uri} AS metering
-                ON  cross_product.USAGE_DATE        = metering.USAGE_DATE
-                AND cross_product.WAREHOUSE_NAME    = metering.WAREHOUSE_NAME
-                GROUP BY
-                    cross_product.WAREHOUSE_NAME,
-                    cross_product.USAGE_DATE
-            )
-            /* Compute Simple Moving averages and Standard Deviations */
-            SELECT  WAREHOUSE_NAME,
-                    USAGE_DATE,
-                    CREDITS_USED,
-                    CREDITS_USED_COMPUTE,
-                    CREDITS_USED_CLOUD_SERVICES,
-                    AVG(CREDITS_USED) OVER (
-                        PARTITION BY WAREHOUSE_NAME
-                        ORDER BY USAGE_DATE
-                        ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
-                    ) AS CREDITS_USED_SMA30,
-                    AVG(CREDITS_USED_COMPUTE) OVER (
-                        PARTITION BY WAREHOUSE_NAME
-                        ORDER BY USAGE_DATE
-                        ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
-                    ) AS CREDITS_USED_COMPUTE_SMA30,
-                    AVG(CREDITS_USED_CLOUD_SERVICES) OVER (
-                        PARTITION BY WAREHOUSE_NAME
-                        ORDER BY USAGE_DATE
-                        ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
-                    ) AS CREDITS_USED_CLOUD_SERVICES_SMA30,
-                    STDDEV(CREDITS_USED) OVER (
-                        PARTITION BY WAREHOUSE_NAME
-                        ORDER BY USAGE_DATE
-                        ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
-                    ) AS CREDITS_USED_STD30,
-                    STDDEV(CREDITS_USED_COMPUTE) OVER (
-                        PARTITION BY WAREHOUSE_NAME
-                        ORDER BY USAGE_DATE
-                        ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
-                    ) AS CREDITS_USED_COMPUTE_STD30,
-                    STDDEV(CREDITS_USED_CLOUD_SERVICES) OVER (
-                        PARTITION BY WAREHOUSE_NAME
-                        ORDER BY USAGE_DATE
-                        ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
-                    ) AS CREDITS_USED_CLOUD_SERVICES_STD30
-            FROM metering
-            ORDER BY WAREHOUSE_NAME,
-                     USAGE_DATE;
-        """,
+        sql="sql/data_preparation/load_metrics_metering_table.sql",
+        params={
+            "metrics_metering_table": metrics_metering_table.uri,
+            "raw_metering_table": raw_metering_table.uri,
+            "common_calendar_table": common_calendar_table.uri,
+        },
     )
 
     @task(
@@ -288,12 +135,10 @@ with DAG(
                   into trend, seasonal, and residual components. We use STL decomposition for simplicity.""",
     )
     def load_feature_metering_table(logical_date=None):
-        # TODO: Version the Feature Metering Table
         ds = logical_date.strftime("%Y-%m-%d")
 
         decomposed_metering_dfs = []
 
-        # Consider doing this with Dynamic Task Mapping too if computation time is too long
         metering_df = snowflake_hook.get_pandas_df(
             sql=f"""
             SELECT WAREHOUSE_NAME, USAGE_DATE, CREDITS_USED
@@ -356,7 +201,7 @@ with DAG(
         )
 
     (
-        [load_raw_metering_table, load_common_calendar_table]
+        load_raw_metering_table
         >> validate_raw_metering_table()
         >> load_metrics_metering_table
         >> load_feature_metering_table()

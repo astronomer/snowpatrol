@@ -11,6 +11,7 @@ import wandb
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.param import Param
+from airflow.operators.python import get_current_context
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from sklearn.ensemble import IsolationForest
@@ -33,7 +34,7 @@ wandb_entity = os.getenv("WANDB_ENTITY")
 model_config = {
     "architecture": "Isolation Forest",
     "dataset": feature_metering_table.uri,
-    "threshold_cutoff": 3,  # we will assume x STDDev from the mean as anomalous
+    "threshold_cutoff": 3,  # we will assume X STDDev from the mean as anomalous
 }
 
 doc_md = """
@@ -144,7 +145,7 @@ with DAG(
         results_df = pd.DataFrame(
             [x.get("parameters") for x in suite.as_dict().get("tests")]
         )
-        # TODO: Check where the null Warehouse name is coming from
+
         results_df = results_df.dropna().sort_values(["column_name"])
         logging.info(results_df.to_string())
 
@@ -163,11 +164,16 @@ with DAG(
     @task(
         outlets=[isolation_forest_model],
         doc_md="Train an isolation forest model for a given warehouse.",
+        map_index_template="{{ model_name }}",
     )
     def train_isolation_forest(warehouse: str, data_interval_start=None, run_id=None):
         # We use the Airflow Run ID to group experiments for all warehouses together
         group_name = run_id.replace(":", "")
         model_name = f"isolation_forest_{warehouse}"
+
+        # Add model_name to current context to use in map_index_template
+        context = get_current_context()
+        context["model_name"] = warehouse
 
         wandb.login()
 
