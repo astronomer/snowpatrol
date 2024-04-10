@@ -7,6 +7,7 @@ import pandas as pd
 import wandb
 from airflow import DAG
 from airflow.decorators import task
+from airflow.operators.python import get_current_context
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
@@ -81,11 +82,16 @@ with DAG(
     @task(
         doc_md="Predict anomalous activity in Snowflake usage.",
         outlets=[model_output_anomalies_table],
+        map_index_template="{{ warehouse }}",
     )
     def predict_metering_anomalies(
         warehouse, data_interval_start=None, logical_date=None
     ) -> pd.DataFrame:
         model_name = f"isolation_forest_{warehouse}"
+
+        # Add model_name to current context to use in map_index_template
+        context = get_current_context()
+        context["model_name"] = warehouse
 
         wandb.login()
 

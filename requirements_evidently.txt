@@ -1,4 +1,4 @@
-apache-airflow==2.8.2
+apache-airflow==2.9.0
 evidently
 lazy_object_proxy
 pendulum
