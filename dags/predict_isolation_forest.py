@@ -9,7 +9,6 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.slack.notifications.slack import send_slack_notification
-
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 

@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS {{ params.table_name }} (
+    USAGE_DATE      DATE        NOT NULL,
+    YEAR            SMALLINT    NOT NULL,
+    MONTH           SMALLINT    NOT NULL,
+    MONTH_NAME      CHAR(3)     NOT NULL,
+    DAY_OF_MON      SMALLINT    NOT NULL,
+    DAY_OF_WEEK     VARCHAR(9)  NOT NULL,
+    WEEK_OF_YEAR    SMALLINT    NOT NULL,
+    DAY_OF_YEAR     SMALLINT    NOT NULL
+)
+AS
+WITH dates AS (
+    SELECT '{{ dag.start_date }}'::DATE -1 +
+      ROW_NUMBER() OVER(ORDER BY 0) AS USAGE_DATE
+    FROM TABLE(GENERATOR(ROWCOUNT => 1826)) -- 5 years
+)
+SELECT  USAGE_DATE,
+        YEAR(USAGE_DATE),
+        MONTH(USAGE_DATE),
+        MONTHNAME(USAGE_DATE),
+        DAY(USAGE_DATE),
+        DAYOFWEEK(USAGE_DATE),
+        WEEKOFYEAR(USAGE_DATE),
+        DAYOFYEAR(USAGE_DATE)
+FROM dates;

@@ -168,29 +168,48 @@ To use this template you need the following:
     cd snowpatrol
     ```
 
-    3. Create a file called `.env` with the following connection strings and environment variables.
-       To make this easier, we have included a .env.example file that you can rename to .env.
+3. Create a file called `.env` with the following connection strings and environment variables.
+   To make this easier, we have included a .env.example file that you can rename to .env.
 
-        - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowpatrol` entity and `snowpatrol`
-          project.
-          Example:
-          ```
-          WANDB_API_KEY:'xxxxxxxxxxx'
-          ```
+    - `WANDB_API_KEY`: The API KEY should have access to the Weights and Biases `snowpatrol` entity and `snowpatrol`
+      project.
+      Example:
+      ```
+      WANDB_API_KEY:'xxxxxxxxxxx'
+      ```
 
-        - `AIRFLOW_CONN_SNOWFLAKE_ADMIN`: This connection string is used for extracting the usage data to the project
-          schema. The user should have access to a role with permissions to read
-          the `SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY` [view](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
-          Example:
-          ```
-          AIRFLOW_CONN_SNOWFLAKE_ADMIN='{"conn_type": "snowflake", "login": "<>", "password": "<", "schema": "<", "extra": {"account": "<>", "warehouse": "<>", "role": "ORGADMIN", "authenticator": "snowflake", "application": "AIRFLOW"}}'
-          ```
+    - `AIRFLOW_CONN_SNOWFLAKE_ADMIN`: This connection string is used for extracting the usage data to the project
+      schema. The user should have access to a role with permissions to read
+      the `SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY`
+      [view](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
+      Example:
+      ```
+      AIRFLOW_CONN_SNOWFLAKE_ADMIN='{"conn_type": "snowflake", "login": "<username>", "password": "<password>", "schema": "<schema>", "extra": {"account": "<account>", "warehouse": "<warehouse>", "role": "<role>", "authenticator": "snowflake", "application": "AIRFLOW"}}'
+      ```
 
-        - `AIRFLOW_CONN_SLACK_API_ALERT`: Add a Slack token for sending Slack alerts.
-          Example:
-          ```
-          AIRFLOW_CONN_SLACK_API_ALERT='{"conn_type": "slack", "password": "xoxb-<>"}'
-          ```
+    - `AIRFLOW_CONN_SLACK_API_ALERT`: Add a Slack token for sending Slack alerts.
+      Example:
+      ```
+      AIRFLOW_CONN_SLACK_API_ALERT='{"conn_type": "slack", "password": "xoxb-<>"}'
+      ```
+
+    - `SNOWFLAKE_ACCOUNT_NUMBER`: Your Snowflake Account Number
+       Example:
+      ```
+      SNOWFLAKE_ACCOUNT_NUMBER=<account_number>
+      ```
+
+    - `SNOWFLAKE_DATASET_DB`: The Snowflake Database to use when creating the SnowPatrol tables
+      Example:
+      ```
+      SNOWFLAKE_DATASET_DB=<my_db>
+      ```
+
+    - `SNOWFLAKE_DATASET_SCHEMA`: The Snowflake Schema to use when creating the SnowPatrol tables
+      Example:
+      ```
+      SNOWFLAKE_DATASET_SCHEMA=<my_schema>
+      ```
 
 4. Start Apache Airflow
     ```sh
@@ -198,18 +217,20 @@ To use this template you need the following:
     astro dev start
     ```
 
-   After Airflow starts a browser window that should open to [http://localhost:8080](http://localhost:8080). Log in with
+   Airflow starts a browser window that should open to [http://localhost:8080](http://localhost:8080). Log in with
    the following credentials:
     - **username**: `admin`
     - **password**: `admin`
 
-5. Run the `data_preparation` DAG:
+5. Run the `initial_setup` DAG to create the necessary Snowflake tables.
+
+6. Run the `data_preparation` DAG:
    After the `data_preparation` DAG runs it will trigger the `train_isolation_forest` DAG.
 
-6. After the `data_preparation` and `train_isolation_forest` DAGs run, Airflow will trigger
+7. After the `data_preparation` and `train_isolation_forest` DAGs run, Airflow will trigger
    the `predict_isolation_forest` DAG.
 
-7. Deploy to Astro:
+8. Deploy to Astro:
    Complete the following steps to promote from Airflow running locally to a production deployment in Astro.
     - Log in to Astro from the CLI.
     ```bash
@@ -224,7 +245,7 @@ To use this template you need the following:
 
    The `variable update` will load variables from the `.env` file that was created in step #3.
 
-8. Login to astro and ensure that the `data_preparation` DAG is unpaused. Every night
+9. Login to astro and ensure that the `data_preparation` DAG is unpaused. Every night
    the `data_preparation`, `train_isolation_forest` and `predict_isolation_forest` DAGs will run. Alerts
    will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` and `monitoring`
    DAGs.

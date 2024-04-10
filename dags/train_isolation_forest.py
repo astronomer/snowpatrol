@@ -33,7 +33,7 @@ wandb_entity = os.getenv("WANDB_ENTITY")
 model_config = {
     "architecture": "Isolation Forest",
     "dataset": feature_metering_table.uri,
-    "threshold_cutoff": 3,  # we will assume x STDDev from the mean as anomalous
+    "threshold_cutoff": 3,  # we will assume X STDDev from the mean as anomalous
 }
 
 doc_md = """
