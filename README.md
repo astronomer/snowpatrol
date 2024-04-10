@@ -213,7 +213,6 @@ To use this template you need the following:
 
 4. Start Apache Airflow
     ```sh
-    cd airflow
     astro dev start
     ```
 
