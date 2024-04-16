@@ -5,6 +5,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
+from include.config import snowflake_credit_cost
 from include.datasets import reporting_query_duration, reporting_storage_cost
 
 # Snowflake Configuration
@@ -45,6 +46,7 @@ with DAG(
         sql="sql/data_reporting/load_reporting_query_duration.sql",
         params={
             "reporting_query_duration": reporting_query_duration.uri,
+            "snowflake_credit_cost": snowflake_credit_cost
         },
     )
 

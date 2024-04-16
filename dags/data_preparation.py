@@ -18,8 +18,8 @@ from include.datasets import (
     metrics_metering_table,
     raw_metering_table,
     source_metering_table,
-    account_number,
 )
+from include.config import account_number
 from include.exceptions import DataValidationFailed
 
 # Snowflake Configuration
