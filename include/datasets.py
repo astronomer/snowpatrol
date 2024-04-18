@@ -1,11 +1,6 @@
 # Description: This file contains the dataset definitions for all the Dags in the project.
-import os
-
 from airflow import Dataset
-
-account_number = os.getenv("SNOWFLAKE_ACCOUNT_NUMBER")
-db = os.getenv("SNOWFLAKE_DATASET_DB")
-schema = os.getenv("SNOWFLAKE_DATASET_SCHEMA")
+from include.config import db, schema
 
 source_metering_table = Dataset(
     uri="SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY"
