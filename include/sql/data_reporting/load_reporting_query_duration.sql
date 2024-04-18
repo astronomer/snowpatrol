@@ -37,7 +37,7 @@ USING (
         TRY_TO_TIMESTAMP(TRY_PARSE_JSON(qh.query_tag):started::varchar) as airflow_started,
         TRY_PARSE_JSON(qh.query_tag):operator::varchar as airflow_operator,
         qh.execution_time/(1000*60*60)*wh.credits_per_hour AS credits_cost,
-        credits_cost * {{ snowflake_credit_cost }} AS dollars_cost,
+        credits_cost * {{ params.snowflake_credit_cost }} AS dollars_cost,
         CURRENT_TIMESTAMP() AS last_updated_at
     FROM snowflake.account_usage.query_history AS qh
     INNER JOIN warehouse_sizes AS wh
