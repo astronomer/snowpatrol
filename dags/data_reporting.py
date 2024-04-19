@@ -46,7 +46,7 @@ with DAG(
         sql="sql/data_reporting/load_reporting_query_duration.sql",
         params={
             "reporting_query_duration": reporting_query_duration.uri,
-            "snowflake_credit_cost": snowflake_credit_cost
+            "snowflake_credit_cost": snowflake_credit_cost,
         },
     )
 

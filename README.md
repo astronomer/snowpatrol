@@ -142,6 +142,33 @@ To use this template you need the following:
   permissions.
 - An external Postgres Database to use the Anomaly Exploration Plugin
 
+#### Snowflake Permissions
+Step 1: Create a Role named `snowpatrol` and Grant Permissions
+- Grant usage permission on:
+  - Database SNOWFLAKE
+  - Schema ORGANIZATION_USAGE
+  - Schema ACCOUNT_USAGE
+- Grant select permission on:
+  - SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY
+  - SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY
+  - SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY
+  - SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
+  - SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+
+```sql
+CREATE ROLE snowpatrol COMMENT = 'This role has USAGE_VIEWER and ORGANIZATION_BILLING_VIEWER privilege';
+
+GRANT DATABASE ROLE USAGE_VIEWER TO ROLE snowpatrol;
+GRANT DATABASE ROLE ORGANIZATION_BILLING_VIEWER TO ROLE snowpatrol;
+```
+
+Step 2: Grant the Role to your Users, Groups or Service Accounts
+```
+GRANT ROLE snowpatrol TO <user>;
+GRANT ROLE snowpatrol TO <group>;
+GRANT ROLE snowpatrol TO <service_account>;
+```
+
 ### Setup
 
 1. Install Astronomer's [Astro CLI](https://github.com/astronomer/astro-cli). The Astro CLI is an Apache 2.0 licensed,
