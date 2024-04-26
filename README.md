@@ -136,19 +136,20 @@ To use this template you need the following:
 
 - Docker Desktop or similar Docker services running locally with the docker CLI installed.
 - [Weights and Biases account](https://wandb.ai/signup) and an API KEY.
-- [Snowflake account](https://trial.snowflake.com/?owner=SPN-PID-365384) with ADMIN access
+- [Snowflake account](https://trial.snowflake.com/?owner=SPN-PID-365384) with the necessary permissions
 - [Astronomer account](https://www.astronomer.io/try-astro/)
 - A [Slack app](https://api.slack.com/apps/) in the channel to be notified with an `xoxb-` oauth token with `chat:write`
   permissions.
 - An external Postgres Database to use the Anomaly Exploration Plugin
 
 #### Snowflake Permissions
-Step 1: Create a Role named `snowpatrol` and Grant Permissions
-- Grant usage permission on:
+Step 1: Create a Role named `snowpatrol` and grant it the USAGE_VIEWER and ORGANIZATION_BILLING_VIEWER permissions. This is needed so that SnowPatrol can query the following Tables:
+
+- Schemas:
   - Database SNOWFLAKE
   - Schema ORGANIZATION_USAGE
   - Schema ACCOUNT_USAGE
-- Grant select permission on:
+- Tables:
   - SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY
   - SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY
   - SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY
@@ -161,11 +162,16 @@ CREATE ROLE snowpatrol COMMENT = 'This role has USAGE_VIEWER and ORGANIZATION_BI
 GRANT DATABASE ROLE USAGE_VIEWER TO ROLE snowpatrol;
 GRANT DATABASE ROLE ORGANIZATION_BILLING_VIEWER TO ROLE snowpatrol;
 ```
+Step 2: SnowPatrol also needs access to create tables and write data in a dedicated database schema.
 
-Step 2: Grant the Role to your Users, Groups or Service Accounts
+```sql
+GRANT USAGE ON DATABASE <database> TO ROLE snowpatrol;
+GRANT ALL PRIVILEGES ON SCHEMA <database>.snowpatrol TO ROLE snowpatrol;
+```
+
+Step 3: Grant the Role to the User or Service Account you plan to use to connect to Snowflake.
 ```
 GRANT ROLE snowpatrol TO <user>;
-GRANT ROLE snowpatrol TO <group>;
 GRANT ROLE snowpatrol TO <service_account>;
 ```
 
