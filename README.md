@@ -122,13 +122,13 @@ GRANT ROLE snowpatrol TO <service_account>;
       WANDB_API_KEY:'xxxxxxxxxxx'
       ```
 
-    - `AIRFLOW_CONN_SNOWFLAKE_ADMIN`: This connection string is used for extracting the usage data to the project
+    - `AIRFLOW_CONN_SNOWFLAKE_CONN`: This connection string is used for extracting the usage data to the project
       schema. The user should have access to a role with permissions to read
       the `SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY`
       [view](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
       Example:
       ```
-      AIRFLOW_CONN_SNOWFLAKE_ADMIN='{"conn_type": "snowflake", "login": "<username>", "password": "<password>", "schema": "<schema>", "extra": {"account": "<account>", "warehouse": "<warehouse>", "role": "<role>", "authenticator": "snowflake", "application": "AIRFLOW"}}'
+      AIRFLOW_CONN_SNOWFLAKE_CONN='{"conn_type": "snowflake", "login": "<username>", "password": "<password>", "schema": "<schema>", "extra": {"account": "<account>", "warehouse": "<warehouse>", "role": "<role>", "authenticator": "snowflake", "application": "AIRFLOW"}}'
       ```
 
     - `AIRFLOW_CONN_SLACK_API_ALERT`: Add a Slack token for sending Slack alerts.

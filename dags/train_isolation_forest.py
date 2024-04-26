@@ -18,7 +18,7 @@ from sklearn.ensemble import IsolationForest
 from include.datasets import feature_metering_table, isolation_forest_model
 
 # Snowflake Configuration
-snowflake_conn_id = "snowflake_admin"
+snowflake_conn_id = "snowflake_conn"
 snowflake_hook = SnowflakeHook(snowflake_conn_id)
 
 # Slack Configuration

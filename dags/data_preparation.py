@@ -23,7 +23,7 @@ from include.config import account_number
 from include.exceptions import DataValidationFailed
 
 # Snowflake Configuration
-snowflake_conn_id = "snowflake_admin"
+snowflake_conn_id = "snowflake_conn"
 snowflake_hook = SnowflakeHook(snowflake_conn_id)
 
 # Slack Configuration
