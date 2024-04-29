@@ -10,7 +10,6 @@ import plotly.express as px
 import wandb
 from airflow import DAG
 from airflow.decorators import task
-from airflow.models.param import Param
 from airflow.operators.python import get_current_context
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -38,12 +37,8 @@ model_config = {
 }
 
 doc_md = """
-    This DAG performs training of isolation forest models for each Snowflake
-    Virtual Warehouses. We validate that the feature table has been loaded
-    for all past dates before training. A separate model is trained for
-    each warehouse using Dynamic Task Mapping if data drift is detected.
-    Setting the force_retrain parameter to True will force retraining of all models.
-    We force retraining of models if we don't have enough data to detect drift.
+    This DAG performs training of isolation forest models for each Snowflake Virtual Warehouses.
+    A separate model is trained for each warehouse using Dynamic Task Mapping.
 
      #### Tables
         - {feature_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
@@ -56,7 +51,7 @@ with DAG(
         "retry_delay": timedelta(minutes=5),
         "on_failure_callback": send_slack_notification(
             slack_conn_id="slack_alert",
-            text="The task {{ ti.task_id }} failed. Check the logs.",  # TODO: Add link to logs
+            text="The task {{ ti.task_id }} failed. Check the logs.",
             channel=slack_channel,
         ),
     },
@@ -65,101 +60,18 @@ with DAG(
     is_paused_upon_creation=False,
     catchup=False,
     doc_md=doc_md,
-    params={
-        "force_retrain": Param(
-            title="Force retraining",
-            type="boolean",
-            description="""By default, only the drifted models will be retrained.
-                           Setting this to True will force retraining of all models.""",
-            default=True,
-        ),
-    },
 ):
 
-    @task.venv(
-        "evidently_venv",
-        doc_md="""Detect drift in the metering feature table for all warehouses.
-                  Evidently has conflicting dependencies with Airflow and
-                  must run in it's own Python Virtual Environment.
-                  We use [astro-provider-venv](https://github.com/astronomer/astro-provider-venv)
-                  to manage the external python virtual environment.""",
+    @task(
+        doc_md="Get a list of warehouses and use it to expand the training task with Dynamic Task Mapping."
     )
-    def detect_drift_metering(
-        force_retrain: bool,
-        snowflake_conn_config: dict,
-        feature_metering_table: str,
-        data_interval_start=None,
-    ):
-        import logging
-
-        import pandas as pd
-        from evidently.test_suite import TestSuite
-        from evidently.tests import TestAllFeaturesValueDrift
-        from snowflake import connector
-
-        # Query the metering feature table
-        conn = connector.connect(**snowflake_conn_config)
-        cur = conn.cursor()
-
-        query = f"""SELECT USAGE_DATE,
-                           WAREHOUSE_NAME,
-                           CREDITS_USED
-                    FROM {feature_metering_table}
-                    where USAGE_DATE < '{data_interval_start}'
-                    ORDER BY USAGE_DATE ASC;
-                    """
-        cur.execute(query)
-        metering_df = cur.fetch_pandas_all()
-
-        all_warehouses = metering_df["WAREHOUSE_NAME"].unique().tolist()
-        all_dates = metering_df["USAGE_DATE"].nunique()
-
-        # Force retraining for all warehouses if we don't have 30 days of data
-        if all_dates < 30:
-            logging.info(
-                "Not enough data do detect drift. Forcing retraining of all models."
-            )
-            return all_warehouses
-
-        # If we have sufficient data, we retrain only for warehouses that have drifted.
-
-        # To test drift we split the data into two sets: reference and current.
-        # Current is the last 7 days of data. Reference is remaining data.
-        # Drift is detected by comparing the two distributions using the KS test.
-
-        # Pivot the data so that each warehouse is a column
-        metering_df = metering_df.pivot(
-            index="USAGE_DATE", columns="WAREHOUSE_NAME", values="CREDITS_USED"
+    def list_warehouses() -> list[str]:
+        df = snowflake_hook.get_pandas_df(
+            f"""SELECT DISTINCT WAREHOUSE_NAME
+                    FROM {feature_metering_table.uri}
+                    ORDER BY WAREHOUSE_NAME ASC;"""
         )
-        metering_df.reset_index(inplace=True)
-
-        cutoff_date = (metering_df["USAGE_DATE"].max() - pd.DateOffset(days=7)).date()
-
-        reference_df = metering_df[metering_df["USAGE_DATE"] < cutoff_date]
-        current_df = metering_df[metering_df["USAGE_DATE"] >= cutoff_date]
-
-        # Run the KS test for all warehouses using Evidently
-        suite = TestSuite(tests=[TestAllFeaturesValueDrift(stattest="ks")])
-        suite.run(reference_data=reference_df, current_data=current_df)
-
-        results_df = pd.DataFrame(
-            [x.get("parameters") for x in suite.as_dict().get("tests")]
-        )
-
-        results_df = results_df.dropna().sort_values(["column_name"])
-        logging.info(results_df.to_string())
-
-        drifted_warehouses = results_df[results_df["detected"] == True][
-            "column_name"
-        ].values.tolist()
-
-        # We put the logic here so that we still log the results
-        # of the drift detection even if we override it.
-        if force_retrain:
-            logging.info("Forcing retraining of all models.")
-            return all_warehouses
-        else:
-            return drifted_warehouses
+        return df["WAREHOUSE_NAME"].tolist()
 
     @task(
         outlets=[isolation_forest_model],
@@ -271,9 +183,5 @@ with DAG(
             )
         return model_name
 
-    drifted_warehouses = detect_drift_metering(
-        force_retrain="{{ params.force_retrain }}",
-        snowflake_conn_config=snowflake_hook._get_conn_params(),  # TODO: Improve this to use public methods
-        feature_metering_table=feature_metering_table.uri,
-    )
-    train_isolation_forest.expand(warehouse=drifted_warehouses)
+    warehouses = list_warehouses()
+    train_isolation_forest.expand(warehouse=warehouses)

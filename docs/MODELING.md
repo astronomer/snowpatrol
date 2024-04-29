@@ -20,7 +20,7 @@ increasing trend, the model will be trained on decomposed residuals factoring ou
 
 This project separates all the steps of the ML pipeline into 3 different Dags.
 `Data Preparation` handles data extraction, transformation, and feature engineering.
-`Train Isolation Forest` handles drift detection and model training
+`Train Isolation Forest` handles model training
 `Predict Isolation Forest` handles predictions, monitoring and alerting.
 
 <p align="center"><img src="docs/images/dags.png" width="800"/></p>
@@ -49,12 +49,7 @@ Isolation Forest model training is triggered using data-aware scheduling and wil
 datasets are available.
 The DAG uses dynamic tasks to train models for each warehouse.
 
-Prior to training a new model, the training DAG will check for data drift using KS.
-If the Metering data for a particular warehouse has drifted compared to the historical data, the model will be flagged
-to be retrained.
-
-It is possible to bypass this check by setting the `force_retrain` parameter to `True` in the DAG.
-This forces the model to be retrained regardless of the drift detection results.
+For simplicity, we retrain the Model for each warehouse each time.
 
 #### Predictions and Alerting
 
