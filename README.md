@@ -4,9 +4,9 @@
 
 # SnowPatrol
 
-SnowPatrol is an open-source application for managing cloud costs.
-SnowPatrol offers a reference implementation for MLOps on Airflow to manage the training, testing, deployment, and
-monitoring of a predictive model of Snowflake spend.
+SnowPatrol is an application for anomaly detection and alerting of Snowflake usage powered by Machine Learning. It’s
+also an MLOps reference implementation, an example of how to use Airflow as a way to manage the training, testing,
+deployment, and monitoring of predictive models.
 
 At Astronomer, we firmly believe in the power of open source and sharing knowledge.
 We are excited to share this MLOps reference implementation with the community and hope it will be useful to others.
@@ -28,133 +28,43 @@ Cost management is also a key part of our operations. Just like most organizatio
 control our Snowflake costs. While that is a common goal, it can be challenging to achieve. Snowflake costs are complex
 and can be attributed to a variety of factors.
 
-SnowPatrol aims to identify anomalous usage activity in order to allow management and timely correction of activities.
+SnowPatrol aims to identify anomalous usage activity to allow management and timely correction of activities.
 
-### Modeling
+In addition to anomalous usage activity, SnowPatrol can also track the Snowflake costs associated with every Airflow DAG
+and Task. Install the [Astronomer SnowPatrol Plugin](https://github.com/astronomer/astronomer-snowpatrol-plugin) in your
+Airflow Deployments to automatically add Airflow Metadata to every Snowflake Query through Query Tags.
 
-Snowflake users incur costs for compute, storage, marketplace and various other services. Of these, compute is the most
-significant. Data exploration and experimentation was performed (see [notebook](notebooks/snowpatrol.ipynb)) to evaluate
-the ability to identify anomalies for all warehouses.
-While storage usage can increase quickly the relative cost is not significant (<1% of total billing).
-Production models, therefore, will monitor compute usage specifically.
-
-<p align="center">
-  <img src="docs/images/transforming_decompose.png" width="400" align="left"/>
-</p>
-
-Without specific labeled data we will use an unsupervised approach with
-an [Isolation Forest](https://en.wikipedia.org/wiki/Isolation_forest) model. Separate models
-will be trained for each warehouses using dynamic tasks. Because the usage demonstrates both seasonality and
-increasing trend, the model will be trained on decomposed residuals factoring out both seasonality and trend.
-<br clear="left"/>
-
-### DAGs
-
-This project separates all the steps of the ML pipeline into 3 different Dags.
-`Data Preparation` handles data extraction, transformation and feature engineering.
-`Train Isolation Forest` handles drift detection and model training
-`Predict Isolation Forest` handles predictions, monitoring and alerting.
-
-<p align="center"><img src="docs/images/dags.png" width="800"/></p>
-
-#### Data Preparation
-
-Snowflake performs nightly updates to the metering statistics and makes the data available in
-the `WAREHOUSE_METERING_HISTORY` table.
-While we could use the tables directly, the data is truncated daily and only the last 365 days are kept.
-The data preparation DAG extracts organization-level metering data, cleans it up and accumulates it so we have a full
-history. To keep things simple, data validation and feature engineering are done as part of the same DAG.
-
-Data validation is performed after the raw data is sourced from Snowflake views.
-This is to ensure that no data is missing before we perform feature engineering and model training.
-In the future, Soda Core and Great Expectations could be leveraged for further data validation.
-
-Metering data comprises usage across one or more accounts within the Snowflake Organization. Models will be trained
-on each warehouses at the organization level. The feature engineering task is part of the data preparation DAG.
-
-#### Model Training
-
-Multiple models and model instances are trained and stored in the model catalog with versioning. Downstream inference
-tasks will use the `latest` tag.
-
-Isolation Forest model training is triggered using data-aware scheduling and will start as soon as data preparation
-datasets are available.
-The DAG uses dynamic tasks to train models for each warehouse.
-
-Prior to training a new model, the training DAG will check for data drift using KS.
-If the Metering data for a particular warehouse has drifted compared to the historical data, the model will be flagged
-to be retrained.
-
-It is possible to bypass this check by setting the `force_retrain` parameter to `True` in the DAG.
-This forces the model to be retrained regardless of the drift detection results.
-
-#### Predictions and Alerting
-
-Predictions are made in batch with dynamic tasks for each model instance. Identified anomalies are grouped and a report
-is generated in Markdown format. Alerts are sent as Slack messages for notification.
-
-### Data
-
-This project uses pre-computed data which is available in the `SNOWFLAKE` scheme for all accounts.
-The `SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY` [view](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
-is updated nightly with metering data for all warehouses in the main account of the organization.
-
-### Experiment Tracking
-
-<p>
-  <img src="docs/images/model_details.png" width="600" align="right"/>
-</p>
-
-This project uses [Weights and Biases](https://wandb.ai/snowpatrol/snowpatrol) for experiment and model tracking.
-The DAG run_id of the training DAG to group all model instances together. Each model has an `anomaly_threshold`
-parameter which is `threshold_cutoff` (default is 3) standard deviations from the mean of the stationary (decomposed
-residual) scored data. Additionally, artifacts are captured to visualize the seasonal decomposition and the anomaly
-scores of the training data. These are logged to the Weights and Biases project along with the model and
-anomaly_threshold metric.
-
-The link to the WANDB "run" is listed in the task logs. Future work will include integrations with a new provider which
-will cross-link WandB runs with DAG runs.
-
-<br clear="right"/>
-
-### Model Registry
-
-<p>
-  <img src="docs/images/model_registry.png" width="400" align="right"/>
-</p>
-
-Successful runs of the training DAG tag models as "latest" in the [Model Registry](https://wandb.ai/registry/model).
-Downstream DAGs use the "latest" tag for scoring, evaluation and monitoring.
-
-<br clear="right"/>
+To understand how the ML Model was built, refer to the [MODELING](docs%2FMODELING.md) documentation page.
 
 ## Project Setup
 
 ### Prerequisites
 
-To use this template you need the following:
+To use SnowPatrol in your Organization you need:
 
-- Docker Desktop or similar Docker services running locally with the docker CLI installed.
 - [Weights and Biases account](https://wandb.ai/signup) and an API KEY.
 - [Snowflake account](https://trial.snowflake.com/?owner=SPN-PID-365384) with the necessary permissions
 - [Astronomer account](https://www.astronomer.io/try-astro/)
 - A [Slack app](https://api.slack.com/apps/) in the channel to be notified with an `xoxb-` oauth token with `chat:write`
   permissions.
+- Docker Desktop or similar Docker services for local development.
 - An external Postgres Database to use the Anomaly Exploration Plugin
 
 #### Snowflake Permissions
-Step 1: Create a Role named `snowpatrol` and grant it the USAGE_VIEWER and ORGANIZATION_BILLING_VIEWER permissions. This is needed so that SnowPatrol can query the following Tables:
+
+Step 1: Create a Role named `snowpatrol` and grant it the USAGE_VIEWER and ORGANIZATION_BILLING_VIEWER permissions. This
+is needed so that SnowPatrol can query the following Tables:
 
 - Schemas:
-  - Database SNOWFLAKE
-  - Schema ORGANIZATION_USAGE
-  - Schema ACCOUNT_USAGE
+    - Database SNOWFLAKE
+    - Schema ORGANIZATION_USAGE
+    - Schema ACCOUNT_USAGE
 - Tables:
-  - SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY
-  - SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY
-  - SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY
-  - SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
-  - SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+    - SNOWFLAKE.ORGANIZATION_USAGE.USAGE_IN_CURRENCY_DAILY
+    - SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY
+    - SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY
+    - SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
+    - SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
 
 ```sql
 CREATE ROLE snowpatrol COMMENT = 'This role has USAGE_VIEWER and ORGANIZATION_BILLING_VIEWER privilege';
@@ -162,6 +72,7 @@ CREATE ROLE snowpatrol COMMENT = 'This role has USAGE_VIEWER and ORGANIZATION_BI
 GRANT DATABASE ROLE USAGE_VIEWER TO ROLE snowpatrol;
 GRANT DATABASE ROLE ORGANIZATION_BILLING_VIEWER TO ROLE snowpatrol;
 ```
+
 Step 2: SnowPatrol also needs access to create tables and write data in a dedicated database schema.
 
 ```sql
@@ -170,6 +81,7 @@ GRANT ALL PRIVILEGES ON SCHEMA <database>.snowpatrol TO ROLE snowpatrol;
 ```
 
 Step 3: Grant the Role to the User or Service Account you plan to use to connect to Snowflake.
+
 ```
 GRANT ROLE snowpatrol TO <user>;
 GRANT ROLE snowpatrol TO <service_account>;
@@ -180,8 +92,7 @@ GRANT ROLE snowpatrol TO <service_account>;
 1. Install Astronomer's [Astro CLI](https://github.com/astronomer/astro-cli). The Astro CLI is an Apache 2.0 licensed,
    open-source tool for building Airflow instances and provides the fastest and easiest way to be up and running with
    Airflow in minutes. The Astro CLI is a Docker Compose-based tool and integrates easily with Weights and Biases for a
-   local
-   developer environment.
+   local developer environment.
 
    To install the Astro CLI, open a terminal window and run:
 
@@ -227,7 +138,7 @@ GRANT ROLE snowpatrol TO <service_account>;
       ```
 
     - `SNOWFLAKE_ACCOUNT_NUMBER`: Your Snowflake Account Number
-       Example:
+      Example:
       ```
       SNOWFLAKE_ACCOUNT_NUMBER=<account_number>
       ```
@@ -277,10 +188,13 @@ GRANT ROLE snowpatrol TO <service_account>;
 
    The `variable update` will load variables from the `.env` file that was created in step #3.
 
-9. Login to astro and ensure that the `data_preparation` DAG is unpaused. Every night
-   the `data_preparation`, `train_isolation_forest` and `predict_isolation_forest` DAGs will run. Alerts
-   will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` and `monitoring`
-   DAGs.
+9. Login to Astro and ensure that all the DAGs are unpaused. Every night the `data_preparation`, `data_reporting`,
+   `train_isolation_forest` and `predict_isolation_forest` DAGs will run.
+   Alerts will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` DAG.
+
+10. Configure the GitHub Integration in Astro to implement CI/CD for Apache Airflow and deploy code to Astro. This is
+    the fastest way to deploy new changes. See
+    the [documentation](https://docs.astronomer.io/astro/deploy-github-integration) for more details.
 
 ## Feedback
 
