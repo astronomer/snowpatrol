@@ -192,12 +192,9 @@ GRANT ROLE snowpatrol TO <service_account>;
    `train_isolation_forest` and `predict_isolation_forest` DAGs will run.
    Alerts will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` DAG.
 
-10. Configure the following GitHub Environments and Secrets in GitHub to setup CI/CD.
-    Secrets:
-     - DEV_ASTRO_API_TOKEN:  [Documentation here](https://docs.astronomer.io/astro/deployment-api-tokens)
-     - DEV_ASTRO_DEPLOYMENT_ID: Copy this value from the `ID` field in your Astro Deployment
-     - PROD_ASTRO_API_TOKEN  [Documentation here](https://docs.astronomer.io/astro/deployment-api-tokens)
-     - PROD_ASTRO_DEPLOYMENT_ID  Copy this value from the `ID` field in your Astro Deployment
+10. Configure the GitHub Integration in Astro to implement CI/CD for Apache Airflow and deploy code to Astro. This is
+    the fastest way to deploy new changes. See
+    the [documentation](https://docs.astronomer.io/astro/deploy-github-integration) for more details.
 
 ## Feedback
 
