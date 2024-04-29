@@ -28,11 +28,11 @@ wandb_project = os.getenv("WANDB_PROJECT")
 wandb_entity = os.getenv("WANDB_ENTITY")
 
 # Snowflake Configuration
-snowflake_conn_id = "snowflake_admin"
+snowflake_conn_id = "snowflake_conn"
 snowflake_hook = SnowflakeHook(snowflake_conn_id)
 
 # Postgres Configuration
-postgres_conn_id = "postgres_admin"
+postgres_conn_id = "postgres_conn"
 postgres_hook = PostgresHook(postgres_conn_id)
 
 # Slack Configuration

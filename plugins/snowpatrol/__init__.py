@@ -14,7 +14,7 @@ from plugins.snowpatrol.charts import get_anomaly_chart
 from plugins.snowpatrol.models import Anomaly, Metering
 
 # Postgres Configuration
-postgres_conn_id = "postgres_admin"
+postgres_conn_id = "postgres_conn"
 postgres_hook = PostgresHook(postgres_conn_id)
 
 # Define the Flask blueprint

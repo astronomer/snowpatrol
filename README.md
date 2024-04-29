@@ -122,13 +122,13 @@ GRANT ROLE snowpatrol TO <service_account>;
       WANDB_API_KEY:'xxxxxxxxxxx'
       ```
 
-    - `AIRFLOW_CONN_SNOWFLAKE_ADMIN`: This connection string is used for extracting the usage data to the project
+    - `AIRFLOW_CONN_SNOWFLAKE_CONN`: This connection string is used for extracting the usage data to the project
       schema. The user should have access to a role with permissions to read
       the `SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY`
       [view](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
       Example:
       ```
-      AIRFLOW_CONN_SNOWFLAKE_ADMIN='{"conn_type": "snowflake", "login": "<username>", "password": "<password>", "schema": "<schema>", "extra": {"account": "<account>", "warehouse": "<warehouse>", "role": "<role>", "authenticator": "snowflake", "application": "AIRFLOW"}}'
+      AIRFLOW_CONN_SNOWFLAKE_CONN='{"conn_type": "snowflake", "login": "<username>", "password": "<password>", "schema": "<schema>", "extra": {"account": "<account>", "warehouse": "<warehouse>", "role": "<role>", "authenticator": "snowflake", "application": "AIRFLOW"}}'
       ```
 
     - `AIRFLOW_CONN_SLACK_API_ALERT`: Add a Slack token for sending Slack alerts.
@@ -192,12 +192,9 @@ GRANT ROLE snowpatrol TO <service_account>;
    `train_isolation_forest` and `predict_isolation_forest` DAGs will run.
    Alerts will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` DAG.
 
-10. Configure the following GitHub Environments and Secrets in GitHub to setup CI/CD.
-    Secrets:
-     - DEV_ASTRO_API_TOKEN:  [Documentation here](https://docs.astronomer.io/astro/deployment-api-tokens)
-     - DEV_ASTRO_DEPLOYMENT_ID: Copy this value from the `ID` field in your Astro Deployment
-     - PROD_ASTRO_API_TOKEN  [Documentation here](https://docs.astronomer.io/astro/deployment-api-tokens)
-     - PROD_ASTRO_DEPLOYMENT_ID  Copy this value from the `ID` field in your Astro Deployment
+10. Configure the GitHub Integration in Astro to implement CI/CD for Apache Airflow and deploy code to Astro. This is
+    the fastest way to deploy new changes. See
+    the [documentation](https://docs.astronomer.io/astro/deploy-github-integration) for more details.
 
 ## Feedback
 

@@ -9,7 +9,7 @@ from include.config import snowflake_credit_cost
 from include.datasets import reporting_query_duration, reporting_storage_cost
 
 # Snowflake Configuration
-snowflake_conn_id = "snowflake_admin"
+snowflake_conn_id = "snowflake_conn"
 snowflake_hook = SnowflakeHook(snowflake_conn_id)
 
 # Slack Configuration

@@ -16,7 +16,7 @@ from include.datasets import (
 )
 
 # Snowflake Configuration
-snowflake_conn_id = "snowflake_admin"
+snowflake_conn_id = "snowflake_conn"
 
 doc_md = """
 # Initial Setup
@@ -55,6 +55,7 @@ with DAG(
         sql="sql/initial_setup/create_metrics_warehouse_metering_history.sql",
         params={"table_name": metrics_metering_table.uri},
     )
+
     feature_metering_seasonal_decompose = SQLExecuteQueryOperator(
         task_id="create_feature_metering_seasonal_decompose",
         conn_id=snowflake_conn_id,
@@ -68,12 +69,14 @@ with DAG(
         sql="sql/initial_setup/create_model_output_anomalies.sql",
         params={"table_name": model_output_anomalies_table.uri},
     )
+
     reporting_query_duration = SQLExecuteQueryOperator(
         task_id="create_reporting_query_duration",
         conn_id=snowflake_conn_id,
         sql="sql/initial_setup/create_reporting_query_duration.sql",
         params={"table_name": reporting_query_duration.uri},
     )
+
     reporting_storage_cost = SQLExecuteQueryOperator(
         task_id="create_reporting_storage_cost",
         conn_id=snowflake_conn_id,
