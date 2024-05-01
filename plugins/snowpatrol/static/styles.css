@@ -1,0 +1,101 @@
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    /* Margin bottom by footer height */
+    margin-bottom: 60px;
+    margin-top: 0px;
+}
+
+#ds-ui {
+    width: 90%;
+}
+
+.footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    /* Set the fixed height of the footer here */
+    height: 60px;
+    background-color: #f5f5f5;
+}
+
+.navbar-inverse {
+    background-color: #002457;
+    border-color: #00a9c5;
+    background-image: none;
+}
+
+.navbar-inverse .navbar-nav > .active > a,
+.navbar-inverse .navbar-nav > .active > a:hover,
+.navbar-inverse .navbar-nav > .active > a:focus {
+    color: #ffffff;
+    background-color: #00a9c5;
+}
+
+.dropdown-menu > .active > a,
+ee.dropdown-menu > .active > a:focus,
+.dropdown-menu > .active > a:hover {
+    background-color: #00a9c5;
+}
+
+g.type-TK > rect {
+    fill: #00ffd0;
+}
+
+text {
+    font-weight: 300;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+}
+
+.node rect {
+    stroke: #999;
+    fill: #fff;
+    stroke-width: 1.5px;
+    cursor: pointer;
+}
+
+.node text {
+    cursor: pointer;
+}
+
+.edgePath path {
+    stroke: #333;
+    stroke-width: 1.5px;
+}
+
+svg {
+    width: 100%;
+    margin: 0px;
+}
+
+.panel {
+    margin: 0px 10px;
+    border: 0px;
+}
+
+.panel-primary > .panel-heading {
+    background-color: #dddbd9;
+    color: #333232;
+    border: 0px;
+    background-image: none;
+}
+
+.panel-body {
+    margin: 0px 0px 0px 0px;
+    padding: 0px 0px 0px 0px;
+}
+
+.ddui-tab--selected {
+    border-top: 2px solid #00a9c5;
+}
+
+.ddui-tabs-container {
+    color: black;
+    background-color: white;
+    border-bottom: none;
+    border: 0px;
+}
