@@ -1,0 +1,42 @@
+CREATE OR REPLACE VIEW {{ params.view_name }} AS (
+    SELECT
+        D.DS,
+        D.QUERY_ID,
+        D.QUERY_TEXT,
+        D.DATABASE_NAME,
+        D.SCHEMA_NAME,
+        D.WAREHOUSE_NAME,
+        D.WAREHOUSE_SIZE,
+        D.WAREHOUSE_TYPE,
+        D.USER_NAME,
+        D.ROLE_NAME,
+        D.START_DATE,
+        D.END_DATE,
+        D.ERROR_CODE,
+        D.EXECUTION_STATUS,
+        D.EXECUTION_TIME_SEC,
+        D.ROWS_DELETED,
+        D.ROWS_INSERTED,
+        D.ROWS_PRODUCED,
+        D.ROWS_UNLOADED,
+        D.ROWS_UPDATED,
+        D.AIRFLOW_DAG_ID,
+        D.AIRFLOW_TASK_ID,
+        D.AIRFLOW_RUN_ID,
+        D.AIRFLOW_LOGICAL_DATE,
+        D.AIRFLOW_STARTED,
+        D.AIRFLOW_OPERATOR,
+        D.TOTAL_ELAPSED_TIME,
+        D.TOTAL_ELAPSED_TIME_SEC,
+        D.QUEUED_OVERLOAD_TIME,
+        D.QUEUED_PCT,
+        D.QUERY_TIME_RANK,
+        ROUND(D.TOTAL_ELAPSED_TIME / C.TOTAL_TIME_ELAPSED, 6) AS WAREHOUSE_PCT,
+        ROUND(WAREHOUSE_PCT * C.WAREHOUSE_CREDITS, 6) AS TASK_CREDIT_COST,
+        ROUND(TASK_CREDIT_COST * C.EFFECTIVE_RATE, 6) AS TASK_DOLLAR_COST
+    FROM {{ params.reporting_query_history }} AS D
+    INNER JOIN {{ params.reporting_warehouse_credits }} AS C
+        ON
+            D.WAREHOUSE_NAME = C.WAREHOUSE_NAME
+            AND D.DS = C.DS
+)

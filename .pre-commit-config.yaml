@@ -16,6 +16,12 @@ repos:
     hooks:
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
+# SQL Linter
+- repo: https://github.com/sqlfluff/sqlfluff
+  rev: 3.0.5
+  hooks:
+    - id: sqlfluff-fix
+      args: [ "--ignore", "parsing,templating" ]
 # Remove all output from Notebooks
 - repo: https://github.com/kynan/nbstripout
   rev: 0.6.1

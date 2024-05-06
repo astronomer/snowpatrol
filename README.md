@@ -48,7 +48,6 @@ To use SnowPatrol in your Organization you need:
 - A [Slack app](https://api.slack.com/apps/) in the channel to be notified with an `xoxb-` oauth token with `chat:write`
   permissions.
 - Docker Desktop or similar Docker services for local development.
-- An external Postgres Database to use the Anomaly Exploration Plugin
 
 #### Snowflake Permissions
 

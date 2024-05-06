@@ -3,7 +3,6 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.dates import days_ago
 
 snowflake_conn_id = "snowflake_conn"
-postgres_conn_id = "postgres_conn"
 
 snowflake_doc_md = """
 # Connectivity Test
@@ -19,12 +18,5 @@ def test_connectivity():
         conn_id=snowflake_conn_id,
         sql="SELECT TOP 0 * FROM information_schema.tables;",
     )
-    postgres = SQLExecuteQueryOperator(
-        doc_md="This tests the Postgres connection without returning any data.",
-        task_id="test_postgres_conn",
-        conn_id=postgres_conn_id,
-        sql="SELECT TOP 0 * FROM information_schema.tables;",
-    )
 
     snowflake
-    postgres
