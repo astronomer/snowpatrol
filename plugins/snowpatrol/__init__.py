@@ -2,7 +2,7 @@ from airflow.configuration import conf
 from airflow.plugins_manager import AirflowPlugin
 from dash import Input, Output
 
-from plugins.snowpatrol.layout import dashboard_layout
+from plugins.snowpatrol.layout import layout
 from plugins.snowpatrol.view import SnowPatrol
 
 MENU = "SnowPatrol"
@@ -13,7 +13,7 @@ base_url = conf.get("webserver", "base_url")
 
 v_appbuilder_view = SnowPatrol()
 
-v_appbuilder_view.layout = dashboard_layout
+v_appbuilder_view.layout = layout
 
 
 @v_appbuilder_view.callback(Output("output", "children"), [Input("button", "n_clicks")])

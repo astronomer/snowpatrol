@@ -4,6 +4,7 @@ from airflow.security import permissions
 from airflow.www.app import csrf
 from airflow.www.auth import has_access
 from dash import Dash
+from flask import current_app
 from flask_appbuilder import BaseView as AppBuilderBaseView
 from flask_appbuilder import expose
 
@@ -24,14 +25,11 @@ class SnowPatrol(AppBuilderBaseView, Dash):
         Dash.__init__(
             self,
             name="Dash",
-            server=False,
+            server=current_app,
             url_base_pathname="/dash/",
             **kwargs,
         )
         AppBuilderBaseView.__init__(self)
-        logging.debug(
-            "========== SUCCESSFULLY LOADED PLUGIN SnowPatrolAppBuilderView =========="
-        )
 
     def _add_url(self, name, view_func, methods=("GET",)):
         """
