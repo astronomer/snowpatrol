@@ -1,35 +1,39 @@
-from airflow.configuration import conf
 from airflow.plugins_manager import AirflowPlugin
-from dash import Input, Output
+from airflow.security import permissions
+from airflow.www.auth import has_access
+from flask import Blueprint
+from flask_appbuilder import BaseView as AppBuilderBaseView
+from flask_appbuilder import expose
 
-from plugins.snowpatrol.layout import layout
-from plugins.snowpatrol.view import SnowPatrol
-
-MENU = "SnowPatrol"
-MENU_ITEM = "View 📊️ Dashboard"
-URL_PREFIX = "snowpatrol"
-
-base_url = conf.get("webserver", "base_url")
-
-v_appbuilder_view = SnowPatrol()
-
-v_appbuilder_view.layout = layout
+# Define the Flask blueprint
+bp = Blueprint(
+    "snowpatrol",
+    __name__,
+    template_folder="templates",
+    static_folder="static",
+    static_url_path="/static/snowpatrol",
+)
 
 
-@v_appbuilder_view.callback(Output("output", "children"), [Input("button", "n_clicks")])
-def update_output(n_clicks):
-    if n_clicks is None:
-        return "Button not clicked"
-    return f"Button clicked {n_clicks} times"
+class Snowpatrol(AppBuilderBaseView):
+    default_view = "main"
 
+    @has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)])
+    @expose("/")
+    def main(self):
+        return self.render_template("index.html")
+
+
+v_appbuilder_view = Snowpatrol()
 
 v_appbuilder_package = {
-    "name": MENU_ITEM,
-    "category": MENU,
+    "name": "View 📊 Dashboards",
+    "category": "SnowPatrol",
     "view": v_appbuilder_view,
 }
 
 
-class SnowpatrolPlugin(AirflowPlugin):
+class SnowpatrolAnnotationPlugin(AirflowPlugin):
     name = "snowpatrol"
+    flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]

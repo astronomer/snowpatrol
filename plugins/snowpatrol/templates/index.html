@@ -1,21 +1,27 @@
 {% extends base_template %}
 
+{% block head_meta %}
+    {{ metas|safe }}
+    <title>{{ title|safe }}</title>
+{% endblock %}
+
+{% block head_js %}
+    {{ super() }}
+    <script type="module" crossorigin src="{{ url_for('snowpatrol.static',filename='js/index.js') }}"></script>
+{% endblock %}
+
 {% block head_css %}
     {{ super() }}
     {{ css|safe }}
-    <link rel="stylesheet" type="text/css" href="{{ url_for('snowpatrol.static',filename='css/styles.css') }}">
-{% endblock %}
-
-{% block page_title %}
-    {{ title|safe }}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('snowpatrol.static',filename='css/index.css') }}">
 {% endblock %}
 
 {% block content %}
-    {{ app_entry|safe }}
-    {{ dash_config|safe }}
+  {{ super() }}
+  <div id="root">
+  </div>
 {% endblock %}
 
 {% block tail_js %}
     {{ super() }}
-    {{ scripts|safe }}
 {% endblock %}
