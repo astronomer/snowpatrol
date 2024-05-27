@@ -1,5 +1,5 @@
 DELETE FROM {{ params.table_name }}
-WHERE USAGE_DATE BETWEEN DATEADD(DAY, -3, '{{ ds }}') AND '{{ ds }}';
+WHERE USAGE_DATE = '{{ ds }}';
 
 INSERT INTO {{ params.table_name }}
 SELECT
@@ -14,7 +14,7 @@ SELECT
 FROM {{ params.source_metering_table }}
 WHERE
     WAREHOUSE_ID > 0  -- Skip pseudo-VWs such as "CLOUD_SERVICES_ONLY"
-    AND USAGE_DATE BETWEEN DATEADD(DAY, -3, '{{ ds }}') AND '{{ ds }}'
+    AND USAGE_DATE = '{{ ds }}'
     AND ACCOUNT_NAME = '{{ params.account_number }}'
 GROUP BY
     ACCOUNT_NAME,

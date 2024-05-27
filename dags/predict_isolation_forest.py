@@ -53,7 +53,6 @@ with DAG(
         ),
     },
     schedule=[
-        feature_warehouse_metering_table,
         isolation_forest_model,
     ],
     start_date=timezone.utcnow() - relativedelta(years=+1),

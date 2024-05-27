@@ -17,7 +17,10 @@ from airflow.utils import timezone
 from dateutil.relativedelta import relativedelta
 from sklearn.ensemble import IsolationForest
 
-from include.datasets import feature_warehouse_metering_table, isolation_forest_model
+from include.datasets import (
+    feature_warehouse_metering_table,
+    isolation_forest_model,
+)
 
 # Snowflake Configuration
 snowflake_conn_id = "snowflake_conn"
@@ -38,12 +41,13 @@ model_config = {
     "threshold_cutoff": 3,  # we will assume X STDDev from the mean as anomalous
 }
 
-doc_md = """
-    This DAG performs training of isolation forest models for each Snowflake Virtual Warehouses.
+doc_md = f"""
+    This DAG performs feature engineering and training of isolation forest models for each Snowflake Virtual Warehouses.
+    We use it to populate feature tables for ML DAGs.
     A separate model is trained for each warehouse using Dynamic Task Mapping.
 
      #### Tables
-        - {feature_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
+        - {feature_warehouse_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
     """
 
 with DAG(
@@ -57,9 +61,10 @@ with DAG(
             channel=slack_channel,
         ),
     },
-    schedule=[feature_warehouse_metering_table],
+    schedule="@weekly",  # [feature_warehouse_metering_table],
     start_date=timezone.utcnow() - relativedelta(years=+1),
-    catchup=False,
+    catchup=True,
+    max_active_runs=1,
     doc_md=doc_md,
 ):
 

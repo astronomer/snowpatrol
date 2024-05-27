@@ -1,17 +1,18 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils import timezone
+from dateutil.relativedelta import relativedelta
 
+from include.config import account_number
 from include.datasets import (
     reporting_database_storage_cost_table,
     reporting_query_history_table,
     reporting_warehouse_credits_table,
 )
-
-from include.config import account_number
 
 # Snowflake Configuration
 snowflake_conn_id = "snowflake_conn"
@@ -38,8 +39,8 @@ with DAG(
         ),
     },
     schedule="@daily",
-    start_date=datetime(2024, 1, 1),
-    catchup=False,
+    start_date=timezone.utcnow() - relativedelta(years=+1),
+    catchup=True,
     max_active_runs=1,
     doc_md=doc_md,
     template_searchpath="/usr/local/airflow/include",

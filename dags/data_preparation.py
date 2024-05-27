@@ -12,13 +12,11 @@ from airflow.utils import timezone
 from dateutil.relativedelta import relativedelta
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-from include.config import account_number
 from include.datasets import (
     common_calendar_table,
     feature_warehouse_metering_table,
     metrics_warehouse_metering_table,
     raw_warehouse_metering_history_table,
-    source_warehouse_metering_history_table,
 )
 from include.exceptions import DataValidationFailed
 
@@ -32,17 +30,13 @@ slack_channel = "#snowstorm-alerts"
 
 doc_md = f"""
         # Data Preparation
-        This DAG performs the data preparation for Snowflake's Metering view. We use it
-        to populate feature tables for ML DAGs. Corrections can be made to this view
-        up to 24 hours later. Only the last 365 days are kept. We perform a MERGE operation
-        to ensure new data is inserted and past history is updated if changes happen for past dates.
+        This DAG performs the data preparation for Snowflake's Metering data.
 
         #### Tables
-        - [{source_warehouse_metering_history_table.uri}](https://docs.snowflake.com/en/sql-reference/organization-usage/warehouse_metering_history)
         - {common_calendar_table.uri} - A simple calendar table populated for 5 years starting on 2023-01-01
         - {raw_warehouse_metering_history_table.uri} - A source table to accumulate the metering data
         - {metrics_warehouse_metering_table.uri} - A metrics table for the metering data with added statistics like SMA and STD
-        - {feature_warehouse_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
+        - {feature_warehouse_metering_table.uri} - A feature table for the deseasonalized metering data
         """
 
 with DAG(
@@ -58,28 +52,11 @@ with DAG(
     },
     schedule="@daily",
     start_date=timezone.utcnow() - relativedelta(years=+1),
-    catchup=True,
+    catchup=False,
     max_active_runs=1,
     doc_md=doc_md,
     template_searchpath="/usr/local/airflow/include",
 ):
-    load_warehouse_metering_history = SQLExecuteQueryOperator(
-        doc_md="""
-            Task to persist the data from the view
-            SNOWFLAKE.ORGANIZATION_USAGE.WAREHOUSE_METERING_HISTORY.
-            This view keeps the last 365 days of data so we need to persist it ourselves.
-            We reload 3 days each time to account for Snowflake past corrections.
-            """,
-        task_id="load_warehouse_metering_history_table",
-        conn_id=snowflake_conn_id,
-        outlets=raw_warehouse_metering_history_table,
-        sql="sql/data_preparation/warehouse_metering_history.sql",
-        params={
-            "table_name": raw_warehouse_metering_history_table.uri,
-            "source_metering_table": source_warehouse_metering_history_table.uri,
-            "account_number": account_number,
-        },
-    )
 
     @task(
         doc_md="""We expect to have metering data for all dates between dag_start_date
@@ -200,8 +177,7 @@ with DAG(
         )
 
     (
-        load_warehouse_metering_history
-        >> validate_raw_metering_table()
+        validate_raw_metering_table()
         >> load_metrics_warehouse_metering_table
         >> load_feature_warehouse_metering_table()
     )
