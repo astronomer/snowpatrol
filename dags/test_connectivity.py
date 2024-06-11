@@ -10,7 +10,12 @@ Tests connectivity to the Databases.
 """
 
 
-with DAG(dag_id="test_connectivity", schedule=None, start_date=days_ago(1), doc_md=snowflake_doc_md):
+with DAG(
+    dag_id="test_connectivity",
+    schedule=None,
+    start_date=days_ago(1),
+    doc_md=snowflake_doc_md,
+):
     snowflake = SQLExecuteQueryOperator(
         doc_md="This tests the Snowflake connection without returning any data.",
         task_id="test_snowflake_conn",
