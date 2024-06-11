@@ -31,6 +31,7 @@ slack_channel = "#snowstorm-alerts"
 doc_md = f"""
         # Data Preparation
         This DAG performs the data preparation for Snowflake's Metering data.
+        Important: Ensure the Data Ingestion Dag has run for all dates before attempting to run this Dag.
 
         #### Tables
         - {common_calendar_table.uri} - A simple calendar table populated for 5 years starting on 2023-01-01
@@ -40,24 +41,23 @@ doc_md = f"""
         """
 
 with DAG(
-    dag_id="data_preparation",
-    default_args={
-        "retries": 3,
-        "retry_delay": timedelta(minutes=5),
-        "on_failure_callback": send_slack_notification(
-            slack_conn_id="slack_alert",
-            text="The task {{ ti.task_id }} failed. Check the logs.",
-            channel=slack_channel,
-        ),
-    },
-    schedule="@daily",
-    start_date=timezone.utcnow() - relativedelta(years=+1),
-    catchup=False,
-    max_active_runs=1,
-    doc_md=doc_md,
-    template_searchpath="/usr/local/airflow/include",
+        dag_id="data_preparation",
+        default_args={
+            "retries": 3,
+            "retry_delay": timedelta(minutes=5),
+            "on_failure_callback": send_slack_notification(
+                slack_conn_id="slack_alert",
+                text="The task {{ ti.task_id }} failed. Check the logs.",
+                channel=slack_channel,
+            ),
+        },
+        schedule="@daily",
+        start_date=timezone.utcnow() - relativedelta(years=+1),
+        catchup=False,
+        max_active_runs=1,
+        doc_md=doc_md,
+        template_searchpath="/usr/local/airflow/include",
 ):
-
     @task(
         doc_md="""We expect to have metering data for all dates between dag_start_date
                   and the current execution. This task ensures the raw table has been
@@ -83,8 +83,10 @@ with DAG(
 
         if missing_date_count > 0:
             raise DataValidationFailed(
-                f"{missing_date_count} missing dates found in table {raw_warehouse_metering_history_table.uri}"
+                f"{missing_date_count} missing dates found in table {raw_warehouse_metering_history_table.uri}. "
+                f"Make sure the Data Ingestion Dag has run for all dates before attempting to run this Dag."
             )
+
 
     load_metrics_warehouse_metering_table = SQLExecuteQueryOperator(
         doc_md="""
@@ -104,6 +106,7 @@ with DAG(
             "common_calendar_table": common_calendar_table.uri,
         },
     )
+
 
     @task(
         outlets=feature_warehouse_metering_table,
@@ -176,8 +179,9 @@ with DAG(
             if_exists="replace",
         )
 
+
     (
-        validate_raw_metering_table()
-        >> load_metrics_warehouse_metering_table
-        >> load_feature_warehouse_metering_table()
+            validate_raw_metering_table()
+            >> load_metrics_warehouse_metering_table
+            >> load_feature_warehouse_metering_table()
     )

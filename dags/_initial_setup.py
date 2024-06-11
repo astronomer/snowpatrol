@@ -175,9 +175,7 @@ with DAG(
             reporting_database_storage_cost,
             reporting_anomalies,
         ]
-        >> [
-            reporting_dag_cost_warnings,
-            reporting_warehouse_credits_delta
-        ]
+        >> reporting_dag_cost_warnings
+        >> reporting_warehouse_credits_delta
         >> end
     )
