@@ -48,7 +48,7 @@ with DAG(
         "depends_on_past": True,
         "on_failure_callback": send_slack_notification(
             slack_conn_id="slack_alert",
-            text="The task {{ ti.task_id }} failed. Check the logs.",  # TODO: Add link to logs
+            text="The task {{ ti.task_id }} failed. Check the logs.",
             channel=slack_channel,
         ),
     },

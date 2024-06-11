@@ -41,13 +41,13 @@ with DAG(
     schedule="@daily",
     start_date=timezone.utcnow() - relativedelta(years=+1),
     catchup=True,
-    max_active_runs=1,
+    max_active_runs=10,
     doc_md=doc_md,
     template_searchpath="/usr/local/airflow/include",
 ):
     # Query history with parsed JSON query tags for the Airflow Metadata.
     load_reporting_query_history = SQLExecuteQueryOperator(
-        task_id="load_reporting_query_history",
+        task_id="load_reporting_query_history_table",
         conn_id=snowflake_conn_id,
         outlets=reporting_query_history_table,
         sql="sql/data_reporting/reporting_query_history.sql",
@@ -56,7 +56,7 @@ with DAG(
 
     # Calculating the warehouse credits by using the total time and total number of credits.
     load_reporting_warehouse_credits = SQLExecuteQueryOperator(
-        task_id="load_reporting_warehouse_credits",
+        task_id="load_reporting_warehouse_credits_table",
         conn_id=snowflake_conn_id,
         outlets=reporting_warehouse_credits_table,
         sql="sql/data_reporting/reporting_warehouse_credits.sql",
@@ -68,7 +68,7 @@ with DAG(
 
     # Compute the storage cost for each Database
     load_reporting_storage_cost = SQLExecuteQueryOperator(
-        task_id="reporting_storage_cost",
+        task_id="load_reporting_storage_cost_table",
         conn_id=snowflake_conn_id,
         outlets=reporting_database_storage_cost_table,
         sql="sql/data_reporting/reporting_database_storage_cost.sql",
