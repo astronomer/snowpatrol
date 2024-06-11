@@ -1,6 +1,35 @@
 [tool.ruff]
 extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
 ignore = ["E712"]
 
 [tool.isort]
 skip_glob = [".astro/*"]
+
+[tool.sqlfluff.core]
+dialect = "snowflake"
+templater = "jinja"
+sql_file_exts = ".sql"
+max_line_length = 120
+
+exclude_rules = ["L042", "L029"]
+
+[tool.sqlfluff.indentation]
+indented_joins = false
+indented_using_on = true
+
+[tool.sqlfluff.rules.capitalisation.keywords]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.identifiers]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.functions]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.literals]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.types]
+extended_capitalisation_policy = "upper"

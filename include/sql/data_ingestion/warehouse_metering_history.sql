@@ -1,0 +1,23 @@
+DELETE FROM {{ params.table_name }}
+WHERE USAGE_DATE = '{{ ds }}';
+
+INSERT INTO {{ params.table_name }}
+SELECT
+    ACCOUNT_NAME,
+    SERVICE_TYPE,
+    TO_DATE(END_TIME) AS USAGE_DATE,
+    WAREHOUSE_NAME,
+    SUM(CREDITS_USED) AS CREDITS_USED,
+    SUM(CREDITS_USED_COMPUTE) AS CREDITS_USED_COMPUTE,
+    SUM(CREDITS_USED_CLOUD_SERVICES) AS CREDITS_USED_CLOUD_SERVICES,
+    '{{ ds }}' AS DS
+FROM {{ params.source_metering_table }}
+WHERE
+    WAREHOUSE_ID > 0  -- Skip pseudo-VWs such as "CLOUD_SERVICES_ONLY"
+    AND USAGE_DATE = '{{ ds }}'
+    AND ACCOUNT_NAME = '{{ params.account_number }}'
+GROUP BY
+    ACCOUNT_NAME,
+    SERVICE_TYPE,
+    USAGE_DATE,
+    WAREHOUSE_NAME

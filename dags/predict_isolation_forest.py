@@ -1,6 +1,6 @@
 import os
 import pickle
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tempfile import TemporaryDirectory
 
 import pandas as pd
@@ -8,19 +8,17 @@ import wandb
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.python import get_current_context
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils import timezone
+from dateutil.relativedelta import relativedelta
 
 from include.datasets import (
-    feature_metering_table,
+    feature_warehouse_metering_table,
     isolation_forest_model,
-    labeller_anomaly_table,
-    labeller_metering_table,
-    metrics_metering_table,
     model_output_anomalies_table,
-    raw_metering_table,
+    raw_warehouse_metering_history_table,
 )
 
 # Weights and Biases Configuration
@@ -30,10 +28,6 @@ wandb_entity = os.getenv("WANDB_ENTITY")
 # Snowflake Configuration
 snowflake_conn_id = "snowflake_conn"
 snowflake_hook = SnowflakeHook(snowflake_conn_id)
-
-# Postgres Configuration
-postgres_conn_id = "postgres_conn"
-postgres_hook = PostgresHook(postgres_conn_id)
 
 # Slack Configuration
 slack_conn_id = "slack_alert"
@@ -59,10 +53,9 @@ with DAG(
         ),
     },
     schedule=[
-        feature_metering_table,
         isolation_forest_model,
     ],
-    start_date=datetime(2023, 1, 1),
+    start_date=timezone.utcnow() - relativedelta(years=+1),
     is_paused_upon_creation=False,
     catchup=False,
     doc_md=doc_md,
@@ -74,7 +67,7 @@ with DAG(
     def list_warehouses() -> list[str]:
         df = snowflake_hook.get_pandas_df(
             f"""SELECT DISTINCT WAREHOUSE_NAME
-                FROM {feature_metering_table.uri}
+                FROM {feature_warehouse_metering_table.uri}
                 ORDER BY WAREHOUSE_NAME ASC;"""
         )
         return df["WAREHOUSE_NAME"].tolist()
@@ -111,7 +104,7 @@ with DAG(
                            TREND,
                            SEASONAL,
                            RESIDUAL
-                    FROM {feature_metering_table.uri}
+                    FROM {feature_warehouse_metering_table.uri}
                     WHERE   WAREHOUSE_NAME = '{warehouse}'
                     AND     USAGE_DATE BETWEEN DATEADD(DAY, -7, '{data_interval_start}') AND '{data_interval_start}'
                     ORDER BY USAGE_DATE ASC;"""
@@ -134,54 +127,6 @@ with DAG(
 
             return anomalies_df
 
-    @task(doc_md="Load Metering Table")
-    def load_labeller_metering_table():
-        df = snowflake_hook.get_pandas_df(
-            f"""SELECT WAREHOUSE_NAME,
-                    USAGE_DATE,
-                    CREDITS_USED,
-                    CREDITS_USED_COMPUTE,
-                    CREDITS_USED_CLOUD_SERVICES,
-                    CREDITS_USED_SMA30,
-                    CREDITS_USED_COMPUTE_SMA30,
-                    CREDITS_USED_CLOUD_SERVICES_SMA30,
-                    CREDITS_USED_STD30,
-                    CREDITS_USED_COMPUTE_STD30,
-                    CREDITS_USED_CLOUD_SERVICES_STD30
-            FROM {metrics_metering_table.uri}"""
-        )
-        df.columns = [c.lower() for c in df.columns]
-        df.to_sql(
-            name=labeller_metering_table.uri,
-            con=postgres_hook.get_sqlalchemy_engine(),
-            if_exists="replace",
-            index=True,
-            index_label="id",
-        )
-
-    @task(doc_md="Load Anomaly Table")
-    def load_labeller_anomaly_table():
-        df = snowflake_hook.get_pandas_df(
-            f"""SELECT WAREHOUSE_NAME,
-                           USAGE_DATE,
-                           CREDITS_USED,
-                           TREND,
-                           SEASONAL,
-                           RESIDUAL,
-                           SCORE,
-                           PREDICTION_DATETIME
-                    FROM {model_output_anomalies_table.uri}
-            """
-        )
-        df.columns = [c.lower() for c in df.columns]
-        df.to_sql(
-            name=labeller_anomaly_table.uri,
-            con=postgres_hook.get_sqlalchemy_engine(),
-            if_exists="replace",
-            index=True,
-            index_label="id",
-        )
-
     @task(doc_md="Generate a report of anomalous activity in Snowflake usage.")
     def generate_report(anomaly_dfs: [pd.DataFrame]) -> str | None:
         anomalies_df = pd.concat(anomaly_dfs, axis=0).reset_index()
@@ -197,7 +142,7 @@ with DAG(
                            CREDITS_USED,
                            CREDITS_USED_COMPUTE,
                            CREDITS_USED_CLOUD_SERVICES
-                     FROM {raw_metering_table.uri}
+                     FROM {raw_warehouse_metering_history_table.uri}
                      WHERE USAGE_DATE BETWEEN DATEADD(DAY, -7, '{min_date}') AND DATEADD(DAY, 7, '{max_date}')
                      AND WAREHOUSE_NAME IN ({','.join([f"'{w}'" for w in warehouses])})
                      ORDER BY WAREHOUSE_NAME, USAGE_DATE ASC;
@@ -230,8 +175,6 @@ with DAG(
             return ["send_alert"]
 
     anomaly_dfs = predict_metering_anomalies.expand(warehouse=list_warehouses())
-
-    anomaly_dfs >> load_labeller_anomaly_table() >> load_labeller_metering_table()
 
     notification_check = check_notify(anomaly_dfs=anomaly_dfs)
     report = generate_report(anomaly_dfs=anomaly_dfs)

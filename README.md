@@ -48,7 +48,6 @@ To use SnowPatrol in your Organization you need:
 - A [Slack app](https://api.slack.com/apps/) in the channel to be notified with an `xoxb-` oauth token with `chat:write`
   permissions.
 - Docker Desktop or similar Docker services for local development.
-- An external Postgres Database to use the Anomaly Exploration Plugin
 
 #### Snowflake Permissions
 
@@ -167,13 +166,15 @@ GRANT ROLE snowpatrol TO <service_account>;
 
 5. Run the `initial_setup` DAG to create the necessary Snowflake tables.
 
-6. Run the `data_preparation` DAG:
+6. Run the `data_ingestion` DAG to load daily warehouse metering data.
+
+7. Run the `data_preparation` DAG:
    After the `data_preparation` DAG runs it will trigger the `train_isolation_forest` DAG.
 
-7. After the `data_preparation` and `train_isolation_forest` DAGs run, Airflow will trigger
+8. After the `data_preparation` and `train_isolation_forest` DAGs run, Airflow will trigger
    the `predict_isolation_forest` DAG.
 
-8. Deploy to Astro:
+9. Deploy to Astro:
    Complete the following steps to promote from Airflow running locally to a production deployment in Astro.
     - Log in to Astro from the CLI.
     ```bash
@@ -188,11 +189,11 @@ GRANT ROLE snowpatrol TO <service_account>;
 
    The `variable update` will load variables from the `.env` file that was created in step #3.
 
-9. Login to Astro and ensure that all the DAGs are unpaused. Every night the `data_preparation`, `data_reporting`,
-   `train_isolation_forest` and `predict_isolation_forest` DAGs will run.
-   Alerts will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` DAG.
+10. Login to Astro and ensure that all the DAGs are unpaused. Every night the `data_ingestion`, `data_preparation`,
+    `data_reporting`, `train_isolation_forest` and `predict_isolation_forest` DAGs will run.
+    Alerts will be sent to the channel specified in `slack_channel` in the `predict_isolation_forest` DAG.
 
-10. Configure the GitHub Integration in Astro to implement CI/CD for Apache Airflow and deploy code to Astro. This is
+11. Configure the GitHub Integration in Astro to implement CI/CD for Apache Airflow and deploy code to Astro. This is
     the fastest way to deploy new changes. See
     the [documentation](https://docs.astronomer.io/astro/deploy-github-integration) for more details.
 

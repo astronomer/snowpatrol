@@ -1,12 +1,18 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils import timezone
+from dateutil.relativedelta import relativedelta
 
-from include.config import snowflake_credit_cost
-from include.datasets import reporting_query_duration, reporting_storage_cost
+from include.config import account_number
+from include.datasets import (
+    reporting_database_storage_cost_table,
+    reporting_query_history_table,
+    reporting_warehouse_credits_table,
+)
 
 # Snowflake Configuration
 snowflake_conn_id = "snowflake_conn"
@@ -33,32 +39,44 @@ with DAG(
         ),
     },
     schedule="@daily",
-    start_date=datetime(2024, 1, 1),
-    catchup=False,
+    start_date=timezone.utcnow() - relativedelta(years=+1),
+    catchup=True,
     max_active_runs=1,
     doc_md=doc_md,
     template_searchpath="/usr/local/airflow/include",
 ):
-    load_reporting_query_duration = SQLExecuteQueryOperator(
-        task_id="load_reporting_query_duration",
+    # Query history with parsed JSON query tags for the Airflow Metadata.
+    load_reporting_query_history = SQLExecuteQueryOperator(
+        task_id="load_reporting_query_history",
         conn_id=snowflake_conn_id,
-        outlets=reporting_query_duration,
-        sql="sql/data_reporting/load_reporting_query_duration.sql",
+        outlets=reporting_query_history_table,
+        sql="sql/data_reporting/reporting_query_history.sql",
+        params={"reporting_query_history": reporting_query_history_table.uri},
+    )
+
+    # Calculating the warehouse credits by using the total time and total number of credits.
+    load_reporting_warehouse_credits = SQLExecuteQueryOperator(
+        task_id="load_reporting_warehouse_credits",
+        conn_id=snowflake_conn_id,
+        outlets=reporting_warehouse_credits_table,
+        sql="sql/data_reporting/reporting_warehouse_credits.sql",
         params={
-            "reporting_query_duration": reporting_query_duration.uri,
-            "snowflake_credit_cost": snowflake_credit_cost,
+            "reporting_warehouse_credits": reporting_warehouse_credits_table.uri,
+            "account_number": account_number,
         },
     )
 
+    # Compute the storage cost for each Database
     load_reporting_storage_cost = SQLExecuteQueryOperator(
-        task_id="load_reporting_storage_cost",
+        task_id="reporting_storage_cost",
         conn_id=snowflake_conn_id,
-        outlets=reporting_storage_cost,
-        sql="sql/data_reporting/load_reporting_storage_cost.sql",
+        outlets=reporting_database_storage_cost_table,
+        sql="sql/data_reporting/reporting_database_storage_cost.sql",
         params={
-            "reporting_storage_cost": reporting_storage_cost.uri,
+            "reporting_database_storage_cost": reporting_database_storage_cost_table.uri
         },
     )
 
-    load_reporting_query_duration
+    load_reporting_warehouse_credits
+    load_reporting_query_history
     load_reporting_storage_cost

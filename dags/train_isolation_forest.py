@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import pickle
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tempfile import TemporaryDirectory
 
 import plotly.express as px
@@ -13,9 +13,14 @@ from airflow.decorators import task
 from airflow.operators.python import get_current_context
 from airflow.providers.slack.notifications.slack import send_slack_notification
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils import timezone
+from dateutil.relativedelta import relativedelta
 from sklearn.ensemble import IsolationForest
 
-from include.datasets import feature_metering_table, isolation_forest_model
+from include.datasets import (
+    feature_warehouse_metering_table,
+    isolation_forest_model,
+)
 
 # Snowflake Configuration
 snowflake_conn_id = "snowflake_conn"
@@ -32,16 +37,17 @@ wandb_entity = os.getenv("WANDB_ENTITY")
 # Model Configuration
 model_config = {
     "architecture": "Isolation Forest",
-    "dataset": feature_metering_table.uri,
+    "dataset": feature_warehouse_metering_table.uri,
     "threshold_cutoff": 3,  # we will assume X STDDev from the mean as anomalous
 }
 
-doc_md = """
-    This DAG performs training of isolation forest models for each Snowflake Virtual Warehouses.
+doc_md = f"""
+    This DAG performs feature engineering and training of isolation forest models for each Snowflake Virtual Warehouses.
+    We use it to populate feature tables for ML DAGs.
     A separate model is trained for each warehouse using Dynamic Task Mapping.
 
      #### Tables
-        - {feature_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
+        - {feature_warehouse_metering_table.uri} - A feature table for the seasonal decomposition of the metering data
     """
 
 with DAG(
@@ -55,10 +61,10 @@ with DAG(
             channel=slack_channel,
         ),
     },
-    schedule=[feature_metering_table],
-    start_date=datetime(2023, 1, 1),
-    is_paused_upon_creation=False,
-    catchup=False,
+    schedule="@weekly",  # [feature_warehouse_metering_table],
+    start_date=timezone.utcnow() - relativedelta(years=+1),
+    catchup=True,
+    max_active_runs=1,
     doc_md=doc_md,
 ):
 
@@ -68,7 +74,7 @@ with DAG(
     def list_warehouses() -> list[str]:
         df = snowflake_hook.get_pandas_df(
             f"""SELECT DISTINCT WAREHOUSE_NAME
-                    FROM {feature_metering_table.uri}
+                    FROM {feature_warehouse_metering_table.uri}
                     ORDER BY WAREHOUSE_NAME ASC;"""
         )
         return df["WAREHOUSE_NAME"].tolist()
@@ -107,7 +113,7 @@ with DAG(
                 sql=f"""SELECT USAGE_DATE,
                                CREDITS_USED,
                                RESIDUAL
-                      FROM {feature_metering_table.uri}
+                      FROM {feature_warehouse_metering_table.uri}
                       WHERE WAREHOUSE_NAME = '{warehouse}'
                       AND   USAGE_DATE < '{data_interval_start}'
                       ORDER BY USAGE_DATE ASC;
