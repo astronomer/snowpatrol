@@ -6,7 +6,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils import timezone
 from dateutil.relativedelta import relativedelta
 
-from include.datasets import (  # view_reporting_dag_cost_delta,; view_reporting_dag_cost_warnings,
+from include.datasets import (
     common_calendar_table,
     feature_warehouse_metering_table,
     metrics_warehouse_metering_table,
@@ -18,6 +18,8 @@ from include.datasets import (  # view_reporting_dag_cost_delta,; view_reporting
     view_reporting_anomalies,
     view_reporting_dag_cost,
     view_reporting_warehouse_credits_delta,
+    view_reporting_dag_cost_warnings,
+    view_reporting_dag_cost_delta,
 )
 
 # Snowflake Configuration
@@ -69,7 +71,6 @@ with DAG(
         params={"table_name": feature_warehouse_metering_table.uri},
     )
 
-    # TODO: Change this to Snowflake
     model_output_anomalies = SQLExecuteQueryOperator(
         task_id="model_output_anomalies",
         conn_id=snowflake_conn_id,
@@ -99,7 +100,6 @@ with DAG(
     )
 
     # CREATE VIEWS
-
     reporting_dag_cost = SQLExecuteQueryOperator(
         task_id="reporting_dag_cost",
         conn_id=snowflake_conn_id,
@@ -111,27 +111,26 @@ with DAG(
         },
     )
 
-    # TODO: Debug These
-    # reporting_dag_cost_delta = SQLExecuteQueryOperator(
-    #     task_id="reporting_dag_cost_delta",
-    #     conn_id=snowflake_conn_id,
-    #     sql="sql/initial_setup/view_reporting_dag_cost_delta.sql",
-    #     params={
-    #         "view_name": view_reporting_dag_cost_delta.uri,
-    #         "reporting_dag_cost": view_reporting_dag_cost.uri,
-    #     },
-    # )
-    #
-    # reporting_dag_cost_warnings = SQLExecuteQueryOperator(
-    #     task_id="reporting_dag_cost_warnings_view",
-    #     conn_id=snowflake_conn_id,
-    #     sql="sql/initial_setup/view_reporting_dag_cost_warnings.sql",
-    #     params={
-    #         "view_name": view_reporting_dag_cost_warnings.uri,
-    #         "reporting_dag_cost_delta": view_reporting_dag_cost_delta.uri,
-    #     },
-    # )
-    #
+    reporting_dag_cost_delta = SQLExecuteQueryOperator(
+        task_id="reporting_dag_cost_delta",
+        conn_id=snowflake_conn_id,
+        sql="sql/initial_setup/view_reporting_dag_cost_delta.sql",
+        params={
+            "view_name": view_reporting_dag_cost_delta.uri,
+            "reporting_dag_cost": view_reporting_dag_cost.uri,
+        },
+    )
+
+    reporting_dag_cost_warnings = SQLExecuteQueryOperator(
+        task_id="reporting_dag_cost_warnings_view",
+        conn_id=snowflake_conn_id,
+        sql="sql/initial_setup/view_reporting_dag_cost_warnings.sql",
+        params={
+            "view_name": view_reporting_dag_cost_warnings.uri,
+            "reporting_dag_cost_delta": view_reporting_dag_cost_delta.uri,
+        },
+    )
+
     reporting_warehouse_credits_delta = SQLExecuteQueryOperator(
         task_id="reporting_warehouse_credits_delta",
         conn_id=snowflake_conn_id,
@@ -153,8 +152,8 @@ with DAG(
         },
     )
 
-    tables = EmptyOperator(task_id="tables")
-    views = EmptyOperator(task_id="views")
+    tables = EmptyOperator(task_id="create_tables")
+    views = EmptyOperator(task_id="create_views")
     end = EmptyOperator(task_id="end")
 
     # Create Tables first, then Views
@@ -172,8 +171,8 @@ with DAG(
         >> views
         >> [
             reporting_dag_cost,
-            # reporting_dag_cost_delta,
-            # reporting_dag_cost_warnings,
+            reporting_dag_cost_delta,
+            reporting_dag_cost_warnings,
             reporting_database_storage_cost,
             reporting_warehouse_credits_delta,
             reporting_anomalies,
