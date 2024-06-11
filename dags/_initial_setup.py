@@ -172,10 +172,10 @@ with DAG(
         >> [
             reporting_dag_cost,
             reporting_dag_cost_delta,
-            reporting_dag_cost_warnings,
             reporting_database_storage_cost,
-            reporting_warehouse_credits_delta,
             reporting_anomalies,
         ]
+        >> reporting_dag_cost_warnings
+        >> reporting_warehouse_credits_delta
         >> end
     )

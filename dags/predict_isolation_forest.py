@@ -56,7 +56,6 @@ with DAG(
         isolation_forest_model,
     ],
     start_date=timezone.utcnow() - relativedelta(years=+1),
-    is_paused_upon_creation=False,
     catchup=False,
     doc_md=doc_md,
 ):

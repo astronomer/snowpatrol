@@ -31,6 +31,7 @@ slack_channel = "#snowstorm-alerts"
 doc_md = f"""
         # Data Preparation
         This DAG performs the data preparation for Snowflake's Metering data.
+        Important: Ensure the Data Ingestion Dag has run for all dates before attempting to run this Dag.
 
         #### Tables
         - {common_calendar_table.uri} - A simple calendar table populated for 5 years starting on 2023-01-01
@@ -83,7 +84,8 @@ with DAG(
 
         if missing_date_count > 0:
             raise DataValidationFailed(
-                f"{missing_date_count} missing dates found in table {raw_warehouse_metering_history_table.uri}"
+                f"{missing_date_count} missing dates found in table {raw_warehouse_metering_history_table.uri}. "
+                f"Make sure the Data Ingestion Dag has run for all dates before attempting to run this Dag."
             )
 
     load_metrics_warehouse_metering_table = SQLExecuteQueryOperator(

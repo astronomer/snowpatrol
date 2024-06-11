@@ -1,4 +1,4 @@
-from airflow.decorators import dag
+from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.dates import days_ago
 
@@ -10,8 +10,12 @@ Tests connectivity to the Databases.
 """
 
 
-@dag(default_args={}, schedule=None, start_date=days_ago(1), doc_md=snowflake_doc_md)
-def test_connectivity():
+with DAG(
+    dag_id="test_connectivity",
+    schedule=None,
+    start_date=days_ago(1),
+    doc_md=snowflake_doc_md,
+):
     snowflake = SQLExecuteQueryOperator(
         doc_md="This tests the Snowflake connection without returning any data.",
         task_id="test_snowflake_conn",
